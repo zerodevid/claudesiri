@@ -421,6 +421,10 @@ struct Main {
             }
             app.run()
         }
+        if #available(macOS 15.0, *), ScreenRecorder.runIfRequested() {
+            app.setActivationPolicy(.prohibited)
+            app.run()
+        }
         let delegate = AppDelegate()
         app.delegate = delegate
         app.run()
