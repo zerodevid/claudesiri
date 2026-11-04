@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/banner.png" alt="ClaudeSiri" width="100%"></p>
+
 # ClaudeSiri
 
 Panel mengambang ala Siri untuk Mac yang ditenagai **Claude Code**. Tekan **⌥Space** di app mana pun, ketik atau ucapkan pertanyaan, dan jawabannya muncul di kartu kecil di atas layar. Hitungan dan kurs dijawab di tempat, tanpa menunggu AI.
@@ -69,7 +71,7 @@ Yang dibutuhkan:
 - [Claude Code](https://docs.claude.com/en/docs/claude-code) terpasang dan sudah login (`claude` bisa dijalankan di terminal).
 
 ```sh
-git clone <repo> claudesiri && cd claudesiri
+git clone https://github.com/zerodevid/claudesiri.git && cd claudesiri
 ./build.sh
 ```
 
@@ -127,3 +129,11 @@ Kalau punya sertifikat **Apple Development**, `build.sh` memakainya untuk menand
 .build/release/ClaudeSiri --snapshot /tmp/snap                 # render state UI ke PNG
 open -g -n ~/Applications/ClaudeSiri.app --args --record /tmp/demo.mov 120 --display 1
 ```
+
+## Logo
+
+Logo ada di [`assets/logo.svg`](assets/logo.svg). Isinya pill pencarian dengan border berpendar (warna yang sama dengan panel saat Claude bekerja) dan bintang empat sudut. `assets/AppIcon.icns` dibuat dari SVG itu dan dipasang oleh `build.sh`.
+
+## Lisensi
+
+[MIT](LICENSE) © 2026 Zero Dev. ClaudeSiri adalah proyek independen dan tidak berafiliasi dengan Anthropic maupun Apple. Claude adalah merek Anthropic; Siri adalah merek Apple.
