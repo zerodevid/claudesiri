@@ -12,18 +12,18 @@ struct ChatMessage: Identifiable, Equatable {
     var isError = false
     var calc: CalcResult?
     var images: [NSImage] = []
-    var context: String?          // "Teks terpilih dari Safari"
+    var context: String?          // "Selected text from Safari"
     var stats: TurnStats?
 }
 
-/// Gambar yang dilampirkan sebelum dikirim.
+/// An image attached before sending.
 struct Attachment: Identifiable, Equatable {
     let id = UUID()
     let image: NSImage
     let mediaType: String
     let base64: String
 
-    /// Perkecil ke sisi panjang ≤1568px (batas efektif model), PNG; kalau masih >3,5MB pakai JPEG.
+    /// Downscale to a long side of ≤1568 px (the model's effective limit) as PNG; fall back to JPEG above 3.5 MB.
     static func make(from img: NSImage) -> Attachment? {
         guard let cg = img.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
         let maxSide: CGFloat = 1568
@@ -47,12 +47,12 @@ struct Attachment: Identifiable, Equatable {
     }
 }
 
-/// Permintaan izin dari Claude yang menunggu jawaban user.
+/// A permission request from Claude waiting for the user's answer.
 struct PermissionRequest: Identifiable, Equatable {
     let id: String
     let tool: String
-    let title: String      // ringkasan satu baris
-    let detail: String     // isi (perintah / path + potongan isi)
+    let title: String      // one-line summary
+    let detail: String     // body (command / path + content excerpt)
     let input: [String: Any]
     let ruleSuggestion: String?
     let ruleLabel: String?
@@ -90,7 +90,7 @@ final class ChatModel: ObservableObject {
     @Published var input = "" { didSet { if input != oldValue { schedulePreview() } } }
     private var previewWork: DispatchWorkItem?
 
-    /// Hitung preview setelah user berhenti mengetik 0,5 dtk (biar tidak loncat di tengah ketikan).
+    /// Compute the preview once typing has paused for 0.5 s (so it does not jump around mid-typing).
     private func schedulePreview() {
         previewWork?.cancel()
         if input.trimmingCharacters(in: .whitespaces).isEmpty { preview = nil; return }
@@ -113,9 +113,9 @@ final class ChatModel: ObservableObject {
     @Published private(set) var permMode = PermMode.current
     let speech = SpeechInput()
     var contextApp: NSRunningApplication?
-    /// Dipanggil saat Claude butuh perhatian (izin) → AppDelegate memunculkan panel.
+    /// Called when Claude needs attention (a permission) → AppDelegate shows the panel.
     var onAttention: (() -> Void)?
-    /// Dipanggil saat satu jawaban selesai: (teks, durasi detik).
+    /// Called when an answer finishes: (text, duration in seconds).
     var onFinished: ((String, Double) -> Void)?
     private var turnStart = Date()
     private var speechSink: Any?
@@ -139,7 +139,7 @@ final class ChatModel: ObservableObject {
 
     static let models: [(id: String, label: String)] = [("", "Default"), ("opus", "Opus"), ("sonnet", "Sonnet"), ("haiku", "Haiku")]
 
-    /// Ganti mode izin; kalau bukan "tanya", izin yang sedang antre langsung disetujui.
+    /// Switch the permission mode; for anything but "ask", queued requests are approved right away.
     func setPermMode(_ m: PermMode) {
         permMode = m
         PermMode.save(m)
@@ -157,7 +157,7 @@ final class ChatModel: ObservableObject {
         runner.setModel(m)
     }
 
-    /// Dipanggil tiap panel muncul: catat app depan + teks yang sedang dipilih di sana.
+    /// Called whenever the panel appears: remember the frontmost app and the text selected in it.
     func captureContext() {
         guard let app = ScreenContext.frontApp() else { return }
         contextApp = app
@@ -168,7 +168,7 @@ final class ChatModel: ObservableObject {
         }
     }
 
-    /// Lampirkan screenshot jendela app yang tadi aktif.
+    /// Attach a screenshot of the previously active app's window.
     func attachWindowShot() {
         guard let app = contextApp else { return }
         if let img = ScreenContext.captureWindow(of: app) { addImages([img]) }
@@ -187,10 +187,10 @@ final class ChatModel: ObservableObject {
         if p != preview { preview = p }
     }
 
-    /// Enter: kalau isinya hitungan/konversi → jawab lokal; selain itu → Claude.
+    /// Enter: math/conversion → answer locally; anything else → Claude.
     func submit() {
         previewWork?.cancel()
-        updatePreview()   // Enter sebelum jeda selesai tetap pakai hasil terbaru
+        updatePreview()   // Enter before the debounce fires still uses the latest result
         if let p = preview, !busy {
             let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
             messages.append(ChatMessage(role: .user, text: text))
@@ -277,7 +277,7 @@ final class ChatModel: ObservableObject {
         }
     }
 
-    /// Jawab permintaan izin. always = simpan aturan permanen (mis. "Bash(git status:*)").
+    /// Answer a permission request. always = save a permanent rule (e.g. "Bash(git status:*)").
     func answerPermission(_ req: PermissionRequest, allow: Bool, always: Bool = false) {
         if always, let rule = req.ruleSuggestion { PermissionRules.shared.add(rule) }
         runner.respond(id: req.id, allow: allow, input: req.input)
@@ -291,7 +291,7 @@ final class ChatModel: ObservableObject {
         if allow { currentTool = "\(req.tool) · \(req.detail.prefix(80))" }
     }
 
-    /// Buka sesi lama dari riwayat.
+    /// Open an old session from history.
     func loadSession(_ info: SessionInfo) {
         runner.kill()
         let msgs = History.loadMessages(id: info.id, workDir: info.workDir)
@@ -319,10 +319,10 @@ final class ChatModel: ObservableObject {
         if p.runModal() == .OK {
             addImages(p.urls.compactMap { NSImage(contentsOf: $0) })
         }
-        onAttention?()   // panel sempat tersembunyi saat dialog file terbuka
+        onAttention?()   // the panel may have hidden while the file dialog was open
     }
 
-    /// ⌘V: kalau clipboard berisi gambar (dan bukan teks) → lampirkan. Return true kalau ditangani.
+    /// ⌘V: if the clipboard holds an image (and no text) → attach it. Returns true when handled.
     func pasteImageIfAny() -> Bool {
         let pb = NSPasteboard.general
         let opts: [NSPasteboard.ReadingOptionKey: Any] = [.urlReadingFileURLsOnly: true,
@@ -359,7 +359,7 @@ final class ChatModel: ObservableObject {
         NSPasteboard.general.setString(t, forType: .string)
     }
 
-    /// Lanjutkan sesi yang sama di Terminal.app (claude --resume).
+    /// Continue the same session in Terminal.app (claude --resume).
     func openInTerminal() {
         let dir = workDir.replacingOccurrences(of: "'", with: "'\\''")
         var cmd = "cd '\(dir)' && unset ANTHROPIC_API_KEY ANTHROPIC_BASE_URL && claude"

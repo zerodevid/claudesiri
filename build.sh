@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Build ClaudeSiri.app lalu pasang ke ~/Applications
+# Build ClaudeSiri.app and install it into ~/Applications
 set -e
 cd "$(dirname "$0")"
 swift build -c release
@@ -25,8 +25,8 @@ cat > "$APP/Contents/Info.plist" <<PL
 <key>NSSpeechRecognitionUsageDescription</key><string>Mengubah suaramu jadi teks pertanyaan.</string>
 </dict></plist>
 PL
-# Tanda tangan dengan sertifikat Apple Development supaya izin macOS (Aksesibilitas, Screen Recording,
-# Mikrofon) tetap tersimpan antar build. Fallback ad-hoc kalau sertifikat tak ada.
+# Sign with an Apple Development certificate so macOS permissions (Accessibility, Screen Recording,
+# Microphone) survive rebuilds. Falls back to ad-hoc signing when no certificate is found.
 IDENT=$(security find-identity -p codesigning -v | awk '/Apple Development/{print $2; exit}')
 codesign --force --timestamp=none -s "${IDENT:--}" "$APP"
 open "$APP"

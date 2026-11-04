@@ -1,6 +1,6 @@
 import Foundation
 
-/// Riwayat sesi: indeks sesi ClaudeSiri di UserDefaults + baca transkrip .jsonl milik claude.
+/// Session history: index of ClaudeSiri sessions in UserDefaults + reader for claude's .jsonl transcripts.
 struct SessionInfo: Identifiable, Equatable, Codable {
     let id: String
     var title: String
@@ -48,7 +48,7 @@ final class History: ObservableObject {
         return ClaudeRunner.configDir + "/projects/" + enc
     }
 
-    /// Semua sesi di folder kerja (termasuk dari terminal), 60 terbaru.
+    /// All sessions in the working folder (including terminal ones), newest 60.
     func loadAll(workDir: String) {
         guard !loadingAll else { return }
         loadingAll = true
@@ -72,7 +72,7 @@ final class History: ObservableObject {
         }
     }
 
-    /// Judul: ai-title kalau ada di 256KB pertama, kalau tidak pesan user pertama.
+    /// Title: ai-title if it is in the first 256 KB, otherwise the first user message.
     nonisolated static func peekTitle(path: String) -> String? {
         guard let h = FileHandle(forReadingAtPath: path) else { return nil }
         defer { try? h.close() }
@@ -84,7 +84,7 @@ final class History: ObservableObject {
             if firstUser == nil, let t = userText(o) { firstUser = String(t.prefix(80)) }
         }
         if firstUser != nil { return firstUser }
-        // sesi panjang: ai-title sering ada di ujung file
+        // long sessions: ai-title is often near the end of the file
         if let end = try? h.seekToEnd(), end > 256 * 1024 {
             try? h.seek(toOffset: end - 256 * 1024)
             let tail = (try? h.readToEnd()) ?? Data()
@@ -97,7 +97,7 @@ final class History: ObservableObject {
         return nil
     }
 
-    /// Teks pesan manusia dari satu baris jsonl (lewati meta/tool_result/sidechain).
+    /// Human message text from one jsonl line (skips meta/tool_result/sidechain).
     nonisolated static func userText(_ o: [String: Any]) -> String? {
         guard o["type"] as? String == "user", o["isMeta"] as? Bool != true, o["isSidechain"] as? Bool != true,
               let msg = o["message"] as? [String: Any] else { return nil }
@@ -111,13 +111,13 @@ final class History: ObservableObject {
         }
         guard var t = text?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty,
               !t.hasPrefix("<local-command"), !t.hasPrefix("<command-"), !t.hasPrefix("Caveat:") else { return nil }
-        // buang blok konteks yang disisipkan ClaudeSiri
+        // drop the context block injected by ClaudeSiri
         if let r = t.range(of: "</konteks>") { t = String(t[r.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines) }
         if t.hasPrefix("<system-reminder>") { return nil }
         return t
     }
 
-    /// Bangun ulang percakapan dari transkrip.
+    /// Rebuild the conversation from a transcript.
     nonisolated static func loadMessages(id: String, workDir: String) -> [(user: Bool, text: String)] {
         let path = projectDir(for: workDir) + "/\(id).jsonl"
         guard let data = FileManager.default.contents(atPath: path) else { return [] }

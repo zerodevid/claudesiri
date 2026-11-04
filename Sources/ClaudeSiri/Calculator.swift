@@ -1,8 +1,8 @@
 import Foundation
 
-// MARK: - Kurs
+// MARK: - Rates
 
-/// Kurs: 1 unit mata uang = X USD. Fiat dari open.er-api.com, crypto dari CoinGecko. Cache di UserDefaults.
+/// Rates: 1 unit of a currency = X USD. Fiat from open.er-api.com, crypto from CoinGecko. Cached in UserDefaults.
 @MainActor
 final class Rates: ObservableObject {
     static let shared = Rates()
@@ -62,12 +62,12 @@ final class Rates: ObservableObject {
     }
 }
 
-// MARK: - Hasil
+// MARK: - Result
 
 struct CalcResult: Equatable {
-    var expression: String   // baris abu-abu: "200 USD − Rp 1.000.000 ="
-    var value: String        // angka besar
-    var copyText: String     // yang disalin
+    var expression: String   // grey line: "200 USD − Rp 1.000.000 ="
+    var value: String        // big number
+    var copyText: String     // what gets copied
     var secondary: String?   // "≈ US$ 138,52"
     var note: String?        // "1 USD = Rp 16.250 · kurs 12.03"
 }
@@ -119,7 +119,7 @@ enum Calculator {
         guard hasNum, hasCur || hasOp else { return nil }
 
         var target: String?
-        // "… ke idr" / "… = idr"
+        // "… ke idr" / "… = idr" ("to idr")
         if toks.count >= 2, case .cur(let c) = toks[toks.count - 1],
            toks[toks.count - 2] == .to || toks[toks.count - 2] == .op("=") {
             target = c; toks.removeLast(2)
@@ -129,7 +129,7 @@ enum Calculator {
         do {
             value = try parse(toks, rates: rates, used: &used)
         } catch {
-            // "200 usd idr" → mata uang terakhir = target
+            // "200 usd idr" → the last currency is the target
             guard target == nil, case .cur(let c) = toks.last else { return nil }
             target = c
             toks.removeLast()
@@ -151,8 +151,8 @@ enum Calculator {
             return CalcResult(expression: pretty + " =", value: s, copyText: s)
         }
 
-        // Tanpa tujuan eksplisit: tidak dikonversi. Satu mata uang tanpa operasi = tidak ada yang dihitung.
-        // Campuran mata uang ("200 usd - 1jt idr") → hasil dalam mata uang yang disebut terakhir.
+        // No explicit target: no conversion. A single currency without an operation = nothing to compute.
+        // Mixed currencies ("200 usd - 1jt idr") → result in the currency mentioned last.
         var lastCur: String?
         for t in toks { if case .cur(let c) = t { lastCur = c } }
         if target == nil && used.count <= 1 && !hasOp { return nil }
@@ -166,11 +166,11 @@ enum Calculator {
         var secondary: String?
         if cur != tgt && (hasOp || used.count > 1) { secondary = "≈ " + formatMoney(value.v, cur) }
 
-        // catatan kurs: tiap mata uang lain dinyatakan dalam target
+        // rate note: every other currency expressed in the target
         let others = used.union([cur]).subtracting([tgt]).sorted()
         var notes = others.prefix(3).compactMap { c -> String? in
             guard let r = rates.convert(1, from: c, to: tgt) else { return nil }
-            if r < 0.01, let inv = rates.convert(1, from: tgt, to: c) {   // mis. IDR→USD: tampilkan 1 USD = Rp…
+            if r < 0.01, let inv = rates.convert(1, from: tgt, to: c) {   // e.g. IDR→USD: show 1 USD = Rp…
                 return "1 \(tgt) = \(formatMoney(inv, c, precise: true))"
             }
             return "1 \(c) = \(formatMoney(r, tgt, precise: true))"
@@ -222,7 +222,7 @@ enum Calculator {
                 if let cur = currencyWords[w] { out.append(.cur(cur)) }
                 else if toWords.contains(w) { out.append(.to) }
                 else if w == "x" { out.append(.op("*")) }
-                else if w.count == 3, known.contains(w.uppercased()) { out.append(.cur(w.uppercased())) } // kode ISO lain
+                else if w.count == 3, known.contains(w.uppercased()) { out.append(.cur(w.uppercased())) } // other ISO codes
                 else { throw Fail() }
                 continue
             }
@@ -247,7 +247,7 @@ enum Calculator {
         return out
     }
 
-    /// Angka gaya Indonesia & internasional: "6.000.000", "2,5", "1,025", "1,000,000.5", "200.5".
+    /// Indonesian and international number styles: "6.000.000", "2,5", "1,025", "1,000,000.5", "200.5".
     static func parseNumber(_ lit: String) -> Double? {
         var s = lit
         let dots = s.filter { $0 == "." }.count, commas = s.filter { $0 == "," }.count
@@ -311,12 +311,12 @@ enum Calculator {
                     } else if a.cur != nil, b.cur != nil {
                         let bv = try conv(b, to: a.cur)
                         guard bv != 0 else { throw Fail() }
-                        a = Val(v: a.v / bv, cur: nil)  // rasio
+                        a = Val(v: a.v / bv, cur: nil)  // ratio
                     } else {
                         guard scalar(b) != 0 else { throw Fail() }
                         a = Val(v: scalar(a) / scalar(b), cur: a.cur)
                     }
-                } else if case .lp = peek() {   // perkalian implisit: 2(3+4)
+                } else if case .lp = peek() {   // implicit multiplication: 2(3+4)
                     let b = try power()
                     a = Val(v: scalar(a) * scalar(b), cur: a.cur ?? b.cur)
                 } else { break }
@@ -353,7 +353,7 @@ enum Calculator {
             }
             if peek() == .pct { p += 1; v.pct = true }
             if case .cur(let c) = peek(), prefixCur == nil, v.cur == nil {
-                // "200 usd" (tapi bukan "200 usd idr" → yang kedua jadi target)
+                // "200 usd" (but not "200 usd idr" → there the second one is the target)
                 p += 1; v.cur = c
             } else if let c = prefixCur {
                 if v.cur == nil { v.cur = c } else { v.v = try conv(v, to: c); v.cur = c }
@@ -401,7 +401,7 @@ enum Calculator {
         return f.string(from: NSNumber(value: x)) ?? "\(x) \(cur)"
     }
 
-    /// Angka polos buat disalin: "3254123" / "138.52".
+    /// Plain number for copying: "3254123" / "138.52".
     static func plainNumber(_ x: Double, _ cur: String) -> String {
         let digits = Rates.crypto[cur] != nil ? 8 : (cur == "IDR" ? 0 : 2)
         var s = String(format: "%.\(digits)f", x)

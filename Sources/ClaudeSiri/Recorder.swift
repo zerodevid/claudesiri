@@ -1,10 +1,10 @@
 import AppKit
 import ScreenCaptureKit
 
-/// Alat dokumentasi: rekam/screenshot layar utama memakai izin Screen Recording milik ClaudeSiri.
-///   open -n ClaudeSiri.app --args --record <file.mov> [maks-detik]   (berhenti saat <file.mov>.stop dibuat)
+/// Docs tool: record/screenshot the main display using ClaudeSiri's own Screen Recording permission.
+///   open -n ClaudeSiri.app --args --record <file.mov> [max-seconds]   (stops when <file.mov>.stop is created)
 ///   open -n ClaudeSiri.app --args --shot <file.png>
-///   tambah --display N untuk layar lain (0 = layar utama)
+///   add --display N for another display (0 = main display)
 @available(macOS 15.0, *)
 final class ScreenRecorder: NSObject, SCRecordingOutputDelegate {
     private var stream: SCStream?
@@ -71,7 +71,7 @@ final class ScreenRecorder: NSObject, SCRecordingOutputDelegate {
         Self.log("gagal: \(e.localizedDescription)"); done?.resume(); done = nil
     }
 
-    /// Dipanggil dari main sebelum AppDelegate dibuat. Return true kalau mode rekam/shot aktif.
+    /// Called from main before AppDelegate is created. Returns true when record/shot mode is active.
     static func runIfRequested() -> Bool {
         let a = CommandLine.arguments
         if let i = a.firstIndex(of: "--shot"), i + 1 < a.count {

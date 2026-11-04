@@ -2,7 +2,7 @@ import Foundation
 import Speech
 import AVFoundation
 
-/// Pengenal suara: ketuk mic → bicara → teks masuk live ke kolom → diam 1,6 dtk → otomatis kirim.
+/// Speech input: tap the mic → speak → text streams into the field → 1.6 s of silence → sent automatically.
 @MainActor
 final class SpeechInput: ObservableObject {
     @Published private(set) var listening = false
@@ -65,7 +65,7 @@ final class SpeechInput: ObservableObject {
             self.error = "Mikrofon gagal: \(error.localizedDescription)"; return
         }
         listening = true
-        armSilence(after: 6)   // kalau tak bicara sama sekali, berhenti sendiri
+        armSilence(after: 6)   // stop on its own if nothing is said at all
 
         task = rec.recognitionTask(with: req) { [weak self] result, err in
             DispatchQueue.main.async {

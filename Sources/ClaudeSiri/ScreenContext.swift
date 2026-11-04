@@ -1,7 +1,7 @@
 import AppKit
 import ApplicationServices
 
-/// Konteks layar: app yang sedang aktif, teks yang dipilih di sana, dan screenshot jendelanya.
+/// Screen context: the active app, the text selected in it, and a screenshot of its window.
 @MainActor
 enum ScreenContext {
     struct Selected: Equatable {
@@ -9,7 +9,7 @@ enum ScreenContext {
         let text: String
     }
 
-    /// App di depan selain ClaudeSiri (panel kita non-aktif, jadi app user tetap frontmost).
+    /// The frontmost app other than ClaudeSiri (our panel is nonactivating, so the user's app stays frontmost).
     static func frontApp() -> NSRunningApplication? {
         let me = ProcessInfo.processInfo.processIdentifier
         if let f = NSWorkspace.shared.frontmostApplication, f.processIdentifier != me { return f }
@@ -23,7 +23,7 @@ enum ScreenContext {
         _ = AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
     }
 
-    /// Teks yang sedang diblok di app depan (butuh izin Aksesibilitas).
+    /// The text currently selected in the frontmost app (needs Accessibility permission).
     static func selectedText(in app: NSRunningApplication) -> String? {
         guard axTrusted else { return nil }
         let el = AXUIElementCreateApplication(app.processIdentifier)
@@ -38,7 +38,7 @@ enum ScreenContext {
         return t.isEmpty ? nil : String(t.prefix(20_000))
     }
 
-    /// Screenshot jendela paling depan milik app (butuh izin Screen Recording; macOS menanyakan sekali).
+    /// Screenshot of the app's frontmost window (needs Screen Recording; macOS asks once).
     static func captureWindow(of app: NSRunningApplication) -> NSImage? {
         if !CGPreflightScreenCaptureAccess() {
             CGRequestScreenCaptureAccess()

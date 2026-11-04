@@ -1,6 +1,6 @@
 import Foundation
 
-/// Statistik satu giliran jawaban (dari event `result`).
+/// Stats for one answer turn (from the `result` event).
 struct TurnStats: Equatable {
     var model: String?
     var durationMs: Int = 0
@@ -9,10 +9,10 @@ struct TurnStats: Equatable {
     var costUSD: Double = 0
 }
 
-/// Satu proses `claude` per sesi chat, dua arah lewat stream-json:
-/// - pesan user (teks + gambar) ditulis ke stdin
-/// - izin tool datang sebagai control_request (can_use_tool) dan dijawab lewat stdin
-/// - Stop = control_request interrupt (proses tetap hidup), ganti model = set_model
+/// One `claude` process per chat session, two-way over stream-json:
+/// - user messages (text + images) are written to stdin
+/// - tool permissions arrive as control_request (can_use_tool) and are answered on stdin
+/// - Stop = interrupt control_request (process stays alive), model switch = set_model
 final class ClaudeRunner {
     enum Event {
         case sessionID(String)
@@ -33,7 +33,7 @@ final class ClaudeRunner {
     private let writeQueue = DispatchQueue(label: "claudesiri.stdin")
     private var killTimer: DispatchWorkItem?
 
-    /// Model untuk proses berikutnya / yang sedang jalan ("" = default CLI).
+    /// Model for the next / running process ("" = CLI default).
     var model: String = UserDefaults.standard.string(forKey: "model") ?? ""
 
     var isRunning: Bool { process?.isRunning ?? false }
@@ -50,7 +50,7 @@ final class ClaudeRunner {
         return candidates.first { !$0.isEmpty && FileManager.default.isExecutableFile(atPath: $0) }
     }
 
-    /// Folder config claude yang dipakai (buat baca riwayat sesi).
+    /// The claude config folder in use (for reading session history).
     static var configDir: String {
         if let d = ProcessInfo.processInfo.environment["CLAUDE_CONFIG_DIR"], !d.isEmpty { return d }
         let pulse = NSHomeDirectory() + "/.claude-pulse/active"
@@ -58,7 +58,7 @@ final class ClaudeRunner {
         return NSHomeDirectory() + "/.claude"
     }
 
-    /// content = blok pesan Anthropic: [{"type":"text",...}, {"type":"image",...}]
+    /// content = Anthropic message blocks: [{"type":"text",...}, {"type":"image",...}]
     func send(content: [[String: Any]], sessionID: String?, workDir: String, allowed: [String], onEvent: @escaping (Event) -> Void) {
         self.onEvent = onEvent
         if !isRunning {
@@ -77,7 +77,7 @@ final class ClaudeRunner {
                "response": ["subtype": "success", "request_id": id, "response": inner]])
     }
 
-    /// Hentikan jawaban yang sedang jalan tanpa mematikan proses. Kalau 4 dtk tak ada respons → matikan.
+    /// Stop the running answer without killing the process. No response within 4 s → kill it.
     func interrupt() {
         guard isRunning, turnOpen else { return }
         control(["subtype": "interrupt"])
@@ -89,7 +89,7 @@ final class ClaudeRunner {
         DispatchQueue.main.asyncAfter(deadline: .now() + 4, execute: w)
     }
 
-    /// Mode bypass: dipakai saat proses dibuka, dan dikirim langsung kalau proses sedang jalan.
+    /// Bypass mode: applied when the process starts, and sent live if it is already running.
     var bypass = false
     func setBypass(_ on: Bool) {
         guard on != bypass else { return }
@@ -102,7 +102,7 @@ final class ClaudeRunner {
         if isRunning { control(["subtype": "set_model", "model": m.isEmpty ? "default" : m]) }
     }
 
-    /// Matikan proses (chat baru / ganti folder). Pesan berikutnya membuka proses baru dengan --resume.
+    /// Kill the process (new chat / folder change). The next message starts a new one with --resume.
     func kill() {
         guard let p = process else { return }
         process = nil
@@ -151,16 +151,16 @@ final class ClaudeRunner {
                     "--verbose", "--include-partial-messages",
                     "--permission-prompt-tool", "stdio"]
         if let sid = sessionID { args += ["--resume", sid] }
-        // boleh pindah ke bypass di tengah sesi lewat set_permission_mode
+        // allows switching to bypass mid-session via set_permission_mode
         args += ["--allow-dangerously-skip-permissions"]
         if bypass { args += ["--permission-mode", "bypassPermissions"] }
-        // tool baca-saja + aturan "selalu izinkan" langsung jalan; sisanya minta izin lewat UI
+        // read-only tools + "always allow" rules run directly; everything else asks through the UI
         args += ["--allowedTools"] + PermissionRules.readOnly + allowed
         if !model.isEmpty { args += ["--model", model] }
         p.arguments = args
         p.currentDirectoryURL = URL(fileURLWithPath: workDir)
 
-        // Env: buang API key dari .zshrc supaya pakai login claude.ai (akun Claude Pulse aktif).
+        // Env: drop API keys inherited from .zshrc so the claude.ai login is used (and the active Claude Pulse account, if any).
         var env = ProcessInfo.processInfo.environment
         for k in ["ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT"] {
             env.removeValue(forKey: k)

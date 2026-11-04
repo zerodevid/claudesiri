@@ -1,8 +1,8 @@
 import SwiftUI
 import AppKit
 
-/// Render markdown: heading, paragraf (inline + link bisa diklik), daftar, kutipan, garis,
-/// blok kode (dengan tombol salin) dan tabel.
+/// Markdown rendering: headings, paragraphs (inline + clickable links), lists, quotes, rules,
+/// code blocks (with a copy button) and tables.
 struct MarkdownText: View {
     let text: String
     var size: CGFloat = 15
@@ -11,8 +11,8 @@ struct MarkdownText: View {
         case heading(Int, String)
         case prose(String)
         case quote(String)
-        case code(String, String)          // bahasa, isi
-        case table([String], [[String]])   // header, baris
+        case code(String, String)          // language, body
+        case table([String], [[String]])   // header, rows
         case rule
     }
 
@@ -139,7 +139,7 @@ struct MarkdownText: View {
         }.joined(separator: "\n")
     }
 
-    /// Inline markdown + URL polos dijadikan link (di luar `kode`).
+    /// Inline markdown + bare URLs turned into links (outside `code`).
     static func attributed(_ s: String) -> AttributedString {
         let parts = s.components(separatedBy: "`")
         let linked = parts.enumerated().map { i, p -> String in

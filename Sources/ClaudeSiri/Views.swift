@@ -9,10 +9,10 @@ enum Theme {
     static let border = Color.white.opacity(0.13)
     static let dim = Color(white: 0.55)
     static let glow: [Color] = [.blue, .purple, .pink, .orange, .cyan, .blue]
-    static let accent = Color(red: 0.85, green: 0.47, blue: 0.34) // oranye Claude
+    static let accent = Color(red: 0.85, green: 0.47, blue: 0.34) // Claude orange
 }
 
-/// Ukuran konten dilaporkan ke AppDelegate supaya panel ikut besar/kecil.
+/// Content size is reported to AppDelegate so the panel grows and shrinks with it.
 struct SizeKey: PreferenceKey {
     static var defaultValue: CGSize = .zero
     static func reduce(value: inout CGSize, nextValue: () -> CGSize) { value = nextValue() }
@@ -34,7 +34,7 @@ struct RootView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(28) // ruang buat bayangan & glow
+        .padding(28) // room for the shadow and glow
         .onGeometryChange(for: CGSize.self) { $0.size } action: { onSize($0) }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onDrop(of: [.fileURL, .image], isTargeted: nil) { providers in
@@ -57,7 +57,7 @@ struct RootView: View {
     }
 }
 
-// MARK: - Komponen
+// MARK: - Components
 
 struct CircleButton: View {
     let symbol: String
@@ -140,7 +140,7 @@ struct Shell<Content: View>: View {
     }
 }
 
-/// Kolom ketik berbentuk kapsul.
+/// Capsule-shaped input field.
 struct InputPill: View {
     @ObservedObject var model: ChatModel
     var placeholder = "Tanya Claude"
@@ -226,7 +226,7 @@ struct InputPill: View {
     }
 }
 
-/// Kartu hasil hitungan/konversi ala Spotlight/Siri.
+/// Spotlight/Siri-style card for a calculation/conversion result.
 struct CalcCard: View {
     let result: CalcResult
     var big: CGFloat = 46
@@ -262,7 +262,7 @@ struct CalcCard: View {
     }
 }
 
-/// Deretan thumbnail gambar yang akan dikirim.
+/// Row of thumbnails for the images about to be sent.
 struct AttachmentStrip: View {
     @ObservedObject var model: ChatModel
     var body: some View {
@@ -288,7 +288,7 @@ struct AttachmentStrip: View {
     }
 }
 
-/// Kartu minta izin: Tolak / Izinkan / Selalu.
+/// Permission card: Deny / Allow / Always.
 struct PermissionCard: View {
     @ObservedObject var model: ChatModel
     let req: PermissionRequest
@@ -347,7 +347,7 @@ struct PermissionCard: View {
     }
 }
 
-/// Chip konteks: teks yang sedang dipilih di app lain.
+/// Context chip: the text currently selected in another app.
 struct SelectionChip: View {
     @ObservedObject var model: ChatModel
     var body: some View {
@@ -370,7 +370,7 @@ struct SelectionChip: View {
     }
 }
 
-/// Baris kecil di bawah jawaban: model · waktu · token · biaya.
+/// Small line under an answer: model · time · tokens · cost.
 struct StatsLine: View {
     let stats: TurnStats
     var body: some View {
@@ -397,7 +397,7 @@ struct StatsLine: View {
     }
 }
 
-/// Pemilih model kecil.
+/// Small model picker.
 struct ModelMenu: View {
     @ObservedObject var model: ChatModel
     var body: some View {
@@ -421,7 +421,7 @@ struct ModelMenu: View {
     }
 }
 
-/// Pemilih mode izin: Tanya dulu / Selalu izinkan / Lewati semua izin.
+/// Permission mode picker: Ask first / Always allow / Skip all permissions.
 struct PermModeMenu: View {
     @ObservedObject var model: ChatModel
     var body: some View {
@@ -448,7 +448,7 @@ struct PermModeMenu: View {
     }
 }
 
-/// Panel riwayat chat.
+/// Chat history sidebar.
 struct HistoryList: View {
     @ObservedObject var model: ChatModel
     @ObservedObject var history = History.shared
@@ -530,7 +530,7 @@ struct ThinkingDots: View {
     }
 }
 
-// MARK: - Mode kecil (Siri)
+// MARK: - Compact mode (Siri)
 
 struct CompactView: View {
     @ObservedObject var model: ChatModel
@@ -547,8 +547,8 @@ struct CompactView: View {
     var body: some View {
         Group {
             if !hasChat {
-                // Satu struktur tetap (pill selalu di posisi yang sama) supaya TextField tidak dibuat ulang
-                // saat kartu hasil/lampiran muncul — kalau dibuat ulang, fokus ketikan hilang.
+                // One fixed structure (the pill always in the same place) so the TextField is not recreated
+                // when the result card or attachments appear; recreating it loses keyboard focus.
                 let extras = !model.attachments.isEmpty || model.selected != nil || model.speech.error != nil
                 let calc = extras ? nil : model.preview
                 let bare = !extras && calc == nil
@@ -655,7 +655,7 @@ struct CompactView: View {
     }
 }
 
-// MARK: - Mode besar (chat penuh)
+// MARK: - Expanded mode (full chat)
 
 struct ExpandedView: View {
     @ObservedObject var model: ChatModel
@@ -794,9 +794,9 @@ struct ExpandedView: View {
     }
 }
 
-// MARK: - Geser panel
+// MARK: - Panel dragging
 
-/// Seret panel pakai posisi mouse layar (stabil walau jendela ikut bergerak).
+/// Drag the panel using the screen mouse position (stable even while the window moves).
 @MainActor
 enum WindowMover {
     static weak var panel: NSWindow?

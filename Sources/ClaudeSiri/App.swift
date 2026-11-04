@@ -40,7 +40,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         }
     }
 
-    /// Debug: render beberapa keadaan UI ke PNG (tanpa perlu izin rekam layar).
+    /// Debug: render a few UI states to PNG (no screen recording permission needed).
     private func runSnapshots(dir: String) {
         let md = "## Ringkasan\nIni **tebal**, `kode`, dan link https://claude.ai serta [dokumen](https://docs.claude.com).\n\n| Kota | Populasi |\n|---|---|\n| Tokyo | 37 jt |\n| Jakarta | 34 jt |\n\n```swift\nlet x = 42\n```\n> catatan kutipan"
         var waits: [String: Double] = ["b": 35, "c": 30, "d": 25, "g": 12]
@@ -104,7 +104,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         }
     }
 
-    /// Ubah ukuran panel, jangkar di tengah-atas posisi sekarang.
+    /// Resize the panel, anchored at the current top center.
     private func resize(to size: CGSize) {
         if CommandLine.arguments.contains("--snapshot") { print("size", size) }
         guard size.width > 10, size.height > 10, size != lastSize else { return }
@@ -134,7 +134,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     func toggle() { panel.isVisible && panel.isKeyWindow ? hide() : show() }
 
     func windowDidResignKey(_ notification: Notification) {
-        // Mode kecil: klik di luar = sembunyi (seperti Spotlight/Siri). Mode besar tetap mengambang.
+        // Compact mode: clicking outside hides it (like Spotlight/Siri). Expanded mode keeps floating.
         if !model.expanded { hide() }
     }
 
@@ -150,10 +150,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 if let r = self.model.permissions.first { self.model.answerPermission(r, allow: false) }
                 else if self.model.busy { self.model.stop() } else { self.hide() }
                 return nil
-            case (36, true, _) where !self.model.permissions.isEmpty:   // ⌘Enter: izinkan
+            case (36, true, _) where !self.model.permissions.isEmpty:   // ⌘Enter: allow
                 self.model.answerPermission(self.model.permissions[0], allow: true); return nil
-            case (36, true, _): self.model.send(); return nil   // ⌘Enter: paksa tanya Claude
-            // Shortcut edit standar → kolom ketik (app tanpa menu Edit tidak meneruskannya sendiri)
+            case (36, true, _): self.model.send(); return nil   // ⌘Enter: force-ask Claude
+            // Standard edit shortcuts → text field (an app without an Edit menu does not forward them itself)
             case (_, true, "a"): NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil); return nil
             case (_, true, "c"): NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil); return nil
             case (_, true, "v") where self.model.pasteImageIfAny(): return nil
@@ -178,8 +178,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     private var voiceHotKeyRef: EventHotKeyRef?
 
     private func registerHotKey() {
-        // ⌥Space = buka/tutup, ⌥⇧Space = langsung bicara.
-        // Ganti: defaults write id.zerodev.claudesiri hotkeyCode -int <keycode> / hotkeyMods -int <carbon mods>
+        // ⌥Space = show/hide, ⌥⇧Space = start voice input.
+        // Change with: defaults write id.zerodev.claudesiri hotkeyCode -int <keycode> / hotkeyMods -int <carbon mods>
         let d = UserDefaults.standard
         let code = d.object(forKey: "hotkeyCode") as? Int ?? kVK_Space
         let mods = d.object(forKey: "hotkeyMods") as? Int ?? optionKey
@@ -205,9 +205,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         if !model.speech.listening { model.toggleMic() }
     }
 
-    // MARK: Notifikasi & login
+    // MARK: Notifications & login
 
-    /// Notifikasi & login item hanya jalan dari .app (bukan binary mentah saat debug).
+    /// Notifications and the login item only work from the .app (not the raw debug binary).
     private var isBundled: Bool { Bundle.main.bundleIdentifier != nil }
 
     private func setupNotifications() {
@@ -390,7 +390,7 @@ struct Main {
     static func main() {
         let app = NSApplication.shared
         if CommandLine.arguments.contains("--history") {
-            // Debug: daftar sesi folder home + jumlah pesan sesi teratas
+            // Debug: list sessions for the home folder + message count of the newest one
             MainActor.assumeIsolated {
                 let h = History.shared
                 h.loadAll(workDir: NSHomeDirectory())
@@ -432,7 +432,7 @@ struct Main {
 }
 
 extension AppDelegate: NSMenuDelegate {
-    /// Segarkan isi menu (izin AX, aturan izin, model) tiap kali dibuka.
+    /// Refresh the menu (AX permission, permission rules, model) every time it opens.
     nonisolated func menuNeedsUpdate(_ menu: NSMenu) {
         MainActor.assumeIsolated { self.rebuildMenu() }
     }

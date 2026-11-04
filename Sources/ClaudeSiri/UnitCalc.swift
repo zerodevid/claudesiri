@@ -1,12 +1,12 @@
 import Foundation
 
-/// Konversi satuan ("5 km ke mil", "100 f ke c") dan hitungan tanggal
+/// Unit conversion ("5 km ke mil", "100 f ke c") and date arithmetic
 /// ("30 hari lagi", "umur 12/3/1998", "1/1/2026 sampai 4/11/2026").
 @MainActor
 enum UnitCalc {
     private struct U { let dim: String; let factor: Double; let label: String }
 
-    // faktor ke satuan dasar: meter, kilogram, liter, detik, byte, m², m/s
+    // factor to the base unit: meter, kilogram, liter, second, byte, m², m/s
     private static let units: [String: U] = {
         var u: [String: U] = [:]
         func add(_ names: [String], _ dim: String, _ f: Double, _ label: String) { for n in names { u[n] = U(dim: dim, factor: f, label: label) } }
@@ -71,7 +71,7 @@ enum UnitCalc {
         return convertUnits(s, raw: raw) ?? dates(s, raw: raw)
     }
 
-    // MARK: satuan
+    // MARK: units
 
     private static func convertUnits(_ s: String, raw: String) -> CalcResult? {
         let re = #"^(-?[\d.,]+)\s*([a-z°²/"][a-z0-9°²/" ]*?)\s+(?:ke|to|in|jadi|dalam|=|->|→)\s+([a-z°²/"][a-z0-9°²/" ]*?)\s*\??$"#
@@ -102,7 +102,7 @@ enum UnitCalc {
         return t
     }
 
-    // MARK: tanggal
+    // MARK: dates
 
     private static let months: [String: Int] = [
         "jan": 1, "januari": 1, "january": 1, "feb": 2, "februari": 2, "february": 2, "mar": 3, "maret": 3, "march": 3,
@@ -154,7 +154,7 @@ enum UnitCalc {
         let unitMap: [String: Calendar.Component] = ["hari": .day, "day": .day, "days": .day, "minggu": .weekOfYear, "pekan": .weekOfYear,
                                                      "week": .weekOfYear, "weeks": .weekOfYear, "bulan": .month, "month": .month,
                                                      "months": .month, "tahun": .year, "year": .year, "years": .year]
-        // "30 hari lagi", "3 bulan dari sekarang", "100 hari yang lalu", "2 minggu dari 1/12/2026"
+        // "30 hari lagi" (in 30 days), "3 bulan dari sekarang", "100 hari yang lalu" (ago), "2 minggu dari 1/12/2026"
         if let m = s.firstMatch(of: #/^(\d+)\s+([a-z]+)\s+(lagi|kemudian|dari sekarang|dari hari ini|ke depan|yang lalu|lalu|sebelumnya|ago|from now|dari .+|sebelum .+)$/#),
            let n = Int(m.1), let comp = unitMap[String(m.2)] {
             let tail = String(m.3)
@@ -168,13 +168,13 @@ enum UnitCalc {
             guard let d = cal.date(byAdding: comp, value: sign * n, to: base) else { return nil }
             return CalcResult(expression: raw.trimmingCharacters(in: .whitespaces) + " =", value: fmt(d), copyText: isoDate(d))
         }
-        // "umur 12/3/1998", "sejak 1 januari 2020"
+        // "umur 12/3/1998" (age), "sejak 1 januari 2020" (since)
         if let m = s.firstMatch(of: #/^(umur|usia|sejak|since|age)\s+(.+)$/#), let d = parseDate(String(m.2)) {
             let (txt, days) = span(d, cal.startOfDay(for: Date()))
             return CalcResult(expression: raw.trimmingCharacters(in: .whitespaces) + " =", value: txt, copyText: txt,
                               secondary: "= \(Calculator.formatNumber(Double(days))) hari", note: "sejak \(fmt(d))")
         }
-        // "1/1/2026 sampai 4/11/2026", "hari ini sampai 25 desember"
+        // "1/1/2026 sampai 4/11/2026" (until), "hari ini sampai 25 desember"
         if let m = s.firstMatch(of: #/^(?:selisih\s+)?(.+?)\s+(?:sampai|hingga|s\/d|sd|to|until|ke)\s+(.+)$/#),
            let a = parseDate(String(m.1)), let b = parseDate(String(m.2)) {
             let (txt, days) = span(a, b)
@@ -182,7 +182,7 @@ enum UnitCalc {
                               value: "\(Calculator.formatNumber(Double(days))) hari", copyText: "\(days)",
                               secondary: "= \(txt)", note: "\(fmt(a)) → \(fmt(b))")
         }
-        // "25 desember 2026" / "12/3/1998" → hari apa
+        // "25 desember 2026" / "12/3/1998" → which weekday
         if s.contains(where: \.isNumber), let d = parseDate(s) {
             let (txt, days) = span(cal.startOfDay(for: Date()), d)
             let rel = days == 0 ? "hari ini" : (d > Date() ? "\(txt) lagi" : "\(txt) yang lalu")
