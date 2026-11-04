@@ -547,30 +547,27 @@ struct CompactView: View {
     var body: some View {
         Group {
             if !hasChat {
-                if !model.attachments.isEmpty || model.selected != nil || model.speech.error != nil {
-                    Shell(busy: model.busy || model.speech.listening) {
-                        VStack(alignment: .leading, spacing: 10) {
+                // Satu struktur tetap (pill selalu di posisi yang sama) supaya TextField tidak dibuat ulang
+                // saat kartu hasil/lampiran muncul — kalau dibuat ulang, fokus ketikan hilang.
+                let extras = !model.attachments.isEmpty || model.selected != nil || model.speech.error != nil
+                let calc = extras ? nil : model.preview
+                let bare = !extras && calc == nil
+                Shell(busy: model.busy || model.speech.listening, corner: bare ? 50 : Theme.corner) {
+                    VStack(alignment: .leading, spacing: bare ? 0 : (extras ? 10 : 12)) {
+                        if extras {
                             if let e = model.speech.error {
                                 Text(e).font(.system(size: 12)).foregroundStyle(.orange).padding(.horizontal, 8)
                             }
                             SelectionChip(model: model)
                             AttachmentStrip(model: model)
-                            InputPill(model: model, placeholder: model.selected != nil ? "Tanya soal teks ini" : "Tanya soal gambar ini", big: true, focused: $focused)
                         }
-                        .padding(12)
+                        InputPill(model: model,
+                                  placeholder: model.selected != nil ? "Tanya soal teks ini"
+                                      : !model.attachments.isEmpty ? "Tanya soal gambar ini" : "Cari atau Tanya Claude",
+                                  big: true, focused: $focused)
+                        if let p = calc { CalcCard(result: p) }
                     }
-                } else if let p = model.preview {
-                    Shell(busy: model.busy || model.speech.listening) {
-                        VStack(spacing: 12) {
-                            InputPill(model: model, placeholder: "Cari atau Tanya Claude", big: true, focused: $focused)
-                            CalcCard(result: p)
-                        }
-                        .padding(12)
-                    }
-                } else {
-                    Shell(busy: model.busy || model.speech.listening, corner: 50) {
-                        InputPill(model: model, placeholder: "Cari atau Tanya Claude", big: true, focused: $focused)
-                    }
+                    .padding(bare ? 0 : 12)
                 }
             } else {
                 Shell(busy: model.busy || model.speech.listening) {
