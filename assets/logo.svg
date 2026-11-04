@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1c1b26"/>
+      <stop offset="1" stop-color="#07070b"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0" y1="0" x2="1" y2="0.35">
+      <stop offset="0" stop-color="#4f8bff"/>
+      <stop offset="0.38" stop-color="#9a5cff"/>
+      <stop offset="0.7" stop-color="#ff4fa3"/>
+      <stop offset="1" stop-color="#ffa24a"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.58" r="0.5">
+      <stop offset="0" stop-color="#9a5cff" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#9a5cff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="blur" x="-30%" y="-60%" width="160%" height="220%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="14"/></filter>
+    <clipPath id="sq"><rect x="100" y="100" width="824" height="824" rx="185"/></clipPath>
+  </defs>
+  <!-- squircle -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+  <g clip-path="url(#sq)">
+    <rect x="100" y="300" width="824" height="600" fill="url(#halo)"/>
+  </g>
+  <rect x="101.5" y="101.5" width="821" height="821" rx="183.5" fill="none" stroke="#ffffff" stroke-opacity="0.07" stroke-width="3"/>
+  <!-- glow under the pill -->
+  <rect x="222" y="560" width="580" height="170" rx="85" fill="none" stroke="url(#glow)" stroke-width="22" filter="url(#blur)" opacity="0.9"/>
+  <!-- pill (search bar) -->
+  <rect x="222" y="560" width="580" height="170" rx="85" fill="#0d0d13"/>
+  <rect x="222" y="560" width="580" height="170" rx="85" fill="none" stroke="url(#glow)" stroke-width="9"/>
+  <!-- caret + placeholder line -->
+  <rect x="300" y="610" width="10" height="70" rx="5" fill="#ecebf2"/>
+  <rect x="336" y="636" width="250" height="18" rx="9" fill="#ecebf2" opacity="0.18"/>
+  <!-- send dot -->
+  <circle cx="722" cy="645" r="38" fill="#ecebf2"/>
+  <path d="M722 666 V626 M706 641 L722 625 L738 641" stroke="#0d0d13" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- spark -->
+  <g transform="translate(0,-24)">
+  <path d="M512 210 C524 330 562 368 682 380 C562 392 524 430 512 550 C500 430 462 392 342 380 C462 368 500 330 512 210 Z" fill="url(#glow)" filter="url(#soft)" opacity="0.6"/>
+  <path d="M512 210 C524 330 562 368 682 380 C562 392 524 430 512 550 C500 430 462 392 342 380 C462 368 500 330 512 210 Z" fill="url(#glow)"/>
+  </g>
+</svg>
