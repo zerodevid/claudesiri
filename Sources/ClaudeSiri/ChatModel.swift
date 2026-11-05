@@ -13,6 +13,7 @@ struct ChatMessage: Identifiable, Equatable {
     var calc: CalcResult?
     var images: [NSImage] = []
     var context: String?          // "Selected text from Safari"
+    var contextText: String?      // the selected text itself
     var stats: TurnStats?
 }
 
@@ -242,7 +243,8 @@ final class ChatModel: ObservableObject {
         selected = nil
         let firstOfChat = messages.allSatisfy { $0.calc != nil }
         messages.append(ChatMessage(role: .user, text: text, images: atts.map(\.image),
-                                    context: sel.map { tr("Selected text from \($0.app)", "Teks terpilih dari \($0.app)") }))
+                                    context: sel.map { tr("Selected text from \($0.app)", "Teks terpilih dari \($0.app)") },
+                                    contextText: sel?.text))
         messages.append(ChatMessage(role: .assistant, text: ""))
         busy = true
         currentTool = nil
@@ -325,7 +327,12 @@ final class ChatModel: ObservableObject {
         runner.kill()
         endChatScopedMode()
         let msgs = History.loadMessages(id: info.id, workDir: info.workDir)
-        messages = msgs.map { ChatMessage(role: $0.user ? .user : .assistant, text: $0.text) }
+        messages = msgs.map { m in
+            ChatMessage(role: m.user ? .user : .assistant, text: m.text,
+                        context: m.contextText == nil ? nil
+                            : m.contextApp.map { tr("Selected text from \($0)", "Teks terpilih dari \($0)") } ?? tr("Selected text", "Teks terpilih"),
+                        contextText: m.contextText)
+        }
         sessionID = info.id
         workDir = info.workDir
         busy = false

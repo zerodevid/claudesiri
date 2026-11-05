@@ -142,3 +142,27 @@ final class HotkeyTests: XCTestCase {
         XCTAssertEqual(Hotkey(code: kVK_Space, mods: cmdKey | controlKey).display, "⌃⌘Space")
     }
 }
+
+final class HistoryContextTests: XCTestCase {
+    func testSplitsTheContextBlock() {
+        let msg = "<context>Text I have selected in Dia:\n\"\"\"\n0x7583ab…\nsecond line\n\"\"\"</context>\n\ncek address ini"
+        let c = History.splitContext(msg)
+        XCTAssertEqual(c.app, "Dia")
+        XCTAssertEqual(c.selected, "0x7583ab…\nsecond line")
+        XCTAssertEqual(c.text, "cek address ini")
+    }
+
+    func testReadsOlderIndonesianBlocks() {
+        let msg = "<konteks>Teks yang sedang saya pilih di Safari:\n\"\"\"\nhalo\n\"\"\"</konteks>\n\nterjemahkan"
+        let c = History.splitContext(msg)
+        XCTAssertEqual(c.app, "Safari")
+        XCTAssertEqual(c.selected, "halo")
+        XCTAssertEqual(c.text, "terjemahkan")
+    }
+
+    func testPlainMessagesAreUntouched() {
+        let c = History.splitContext("just a question")
+        XCTAssertNil(c.app); XCTAssertNil(c.selected)
+        XCTAssertEqual(c.text, "just a question")
+    }
+}

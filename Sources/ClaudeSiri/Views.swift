@@ -541,6 +541,44 @@ struct HistoryList: View {
     }
 }
 
+/// The text that was selected in another app and sent along with a message.
+/// Shows three lines; click to show all of it.
+struct SelectedTextQuote: View {
+    let label: String
+    let text: String?
+    @State private var expanded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: "text.quote")
+                Text(label)
+                if text != nil {
+                    Spacer(minLength: 8)
+                    Image(systemName: expanded ? "chevron.up" : "chevron.down").font(.system(size: 9, weight: .bold))
+                }
+            }
+            .font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.dim)
+            if let t = text?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty {
+                HStack(alignment: .top, spacing: 8) {
+                    RoundedRectangle(cornerRadius: 1.5).fill(Theme.accent.opacity(0.7)).frame(width: 3)
+                    Text(t)
+                        .font(.system(size: 12.5)).foregroundStyle(Color(white: 0.78))
+                        .lineLimit(expanded ? nil : 3)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .padding(.horizontal, 12).padding(.vertical, 9)
+        .frame(maxWidth: 420, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.white.opacity(0.06)))
+        .contentShape(Rectangle())
+        .onTapGesture { withAnimation(.easeOut(duration: 0.2)) { expanded.toggle() } }
+        .help(expanded ? tr("Click to collapse", "Klik untuk ciutkan") : tr("Click to show all", "Klik untuk lihat semua"))
+    }
+}
+
 /// Small text button under an answer.
 struct QuickAction: View {
     let symbol: String
@@ -627,8 +665,14 @@ struct CompactView: View {
                     // panel, which moved the edge under the cursor and made the panel bounce up and down.
                     VStack(alignment: .leading, spacing: 16) {
                         if let q = model.lastUser {
-                            Text((q.images.isEmpty ? "" : "🖼 \(q.images.count) · ") + q.text).font(.system(size: 13)).foregroundStyle(Theme.dim).lineLimit(2)
-                                .padding(.horizontal, 6)
+                            VStack(alignment: .leading, spacing: 3) {
+                                if let sel = q.contextText {
+                                    Label("“" + sel.replacingOccurrences(of: "\n", with: " ") + "”", systemImage: "text.quote")
+                                        .font(.system(size: 12)).foregroundStyle(Theme.dim.opacity(0.85)).lineLimit(1)
+                                }
+                                Text((q.images.isEmpty ? "" : "🖼 \(q.images.count) · ") + q.text).font(.system(size: 13)).foregroundStyle(Theme.dim).lineLimit(2)
+                            }
+                            .padding(.horizontal, 6)
                         }
 
                         answerCard
@@ -800,7 +844,7 @@ struct ExpandedView: View {
                 Spacer(minLength: 80)
                 VStack(alignment: .trailing, spacing: 6) {
                     if let c = m.context {
-                        Label(c, systemImage: "text.quote").font(.system(size: 11)).foregroundStyle(Theme.dim)
+                        SelectedTextQuote(label: c, text: m.contextText)
                     }
                     if !m.images.isEmpty {
                         HStack(spacing: 6) {

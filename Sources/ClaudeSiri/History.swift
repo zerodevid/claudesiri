@@ -98,8 +98,32 @@ final class History: ObservableObject {
         return nil
     }
 
-    /// Human message text from one jsonl line (skips meta/tool_result/sidechain).
+    /// Human message text from one jsonl line, without the injected context block.
     nonisolated static func userText(_ o: [String: Any]) -> String? {
+        rawUserText(o).map { splitContext($0).text }
+    }
+
+    /// Split the <context> block that ClaudeSiri puts in front of a message into the app name,
+    /// the selected text, and the message the user actually typed.
+    nonisolated static func splitContext(_ t: String) -> (app: String?, selected: String?, text: String) {
+        for (open, close) in [("<context>", "</context>"), ("<konteks>", "</konteks>")] {   // <konteks> = older versions
+            guard let o = t.range(of: open), let c = t.range(of: close, range: o.upperBound..<t.endIndex) else { continue }
+            let inner = String(t[o.upperBound..<c.lowerBound])
+            let rest = String(t[c.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+            var app: String?
+            if let header = inner.split(separator: "\n", maxSplits: 1).first,
+               let m = header.firstMatch(of: #/(?: in | di )(.+):\s*$/#) { app = String(m.1) }
+            var selected: String?
+            if let q1 = inner.range(of: "\"\"\"\n"), let q2 = inner.range(of: "\n\"\"\"", options: .backwards), q1.upperBound <= q2.lowerBound {
+                selected = String(inner[q1.upperBound..<q2.lowerBound])
+            }
+            return (app, selected, rest)
+        }
+        return (nil, nil, t)
+    }
+
+    /// Full human message text from one jsonl line (skips meta/tool_result/sidechain).
+    nonisolated static func rawUserText(_ o: [String: Any]) -> String? {
         guard o["type"] as? String == "user", o["isMeta"] as? Bool != true, o["isSidechain"] as? Bool != true,
               let msg = o["message"] as? [String: Any] else { return nil }
         var text: String?
@@ -110,32 +134,31 @@ final class History: ObservableObject {
             let imgs = blocks.filter { $0["type"] as? String == "image" }.count
             text = (imgs > 0 ? "🖼 \(imgs) · " : "") + parts.joined(separator: "\n")
         }
-        guard var t = text?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty,
+        guard let t = text?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty,
               !t.hasPrefix("<local-command"), !t.hasPrefix("<command-"), !t.hasPrefix("Caveat:") else { return nil }
-        // drop the context block injected by ClaudeSiri
-        for tag in ["</context>", "</konteks>"] {   // </konteks> = sessions from older versions
-            if let r = t.range(of: tag) { t = String(t[r.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines) }
-        }
         if t.hasPrefix("<system-reminder>") { return nil }
         return t
     }
 
     /// Rebuild the conversation from a transcript.
-    nonisolated static func loadMessages(id: String, workDir: String) -> [(user: Bool, text: String)] {
+    nonisolated static func loadMessages(id: String, workDir: String)
+        -> [(user: Bool, text: String, contextApp: String?, contextText: String?)] {
         let path = projectDir(for: workDir) + "/\(id).jsonl"
         guard let data = FileManager.default.contents(atPath: path) else { return [] }
-        var out: [(Bool, String)] = []
+        var out: [(user: Bool, text: String, contextApp: String?, contextText: String?)] = []
         for line in data.split(separator: 0x0A) {
             guard let o = try? JSONSerialization.jsonObject(with: Data(line)) as? [String: Any] else { continue }
-            if let t = userText(o) {
-                out.append((true, t))
+            if let raw = rawUserText(o) {
+                let c = splitContext(raw)
+                out.append((true, c.text, c.app, c.selected))
             } else if o["type"] as? String == "assistant", o["isSidechain"] as? Bool != true,
                       let msg = o["message"] as? [String: Any],
                       let blocks = msg["content"] as? [[String: Any]] {
                 let t = blocks.compactMap { $0["type"] as? String == "text" ? $0["text"] as? String : nil }
                     .joined(separator: "\n\n").trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !t.isEmpty else { continue }
-                if let last = out.last, !last.0 { out[out.count - 1].1 += "\n\n" + t } else { out.append((false, t)) }
+                if let last = out.last, !last.user { out[out.count - 1].text += "\n\n" + t }
+                else { out.append((false, t, nil, nil)) }
             }
         }
         return out
