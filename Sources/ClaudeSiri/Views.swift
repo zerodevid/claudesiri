@@ -37,13 +37,14 @@ struct RootView: View {
             }
         }
         .id(language)   // rebuild every view when the UI language changes
-        // Show/hide effect: grows from 94 % and drops in from just above, anchored at the top like Spotlight.
-        // scaleEffect/offset do not change layout, so the measured panel size stays correct while animating.
-        .scaleEffect(model.shown || reduceMotion ? 1 : 0.94, anchor: .top)
-        .offset(y: model.shown || reduceMotion ? 0 : -10)
+        // Bubble show/hide: pops up from 55 % with a springy overshoot past full size, and shrinks back
+        // with a soft blur when hidden. scaleEffect/blur do not change layout, so the measured panel size
+        // stays correct while animating; the 28 pt padding leaves room for the overshoot.
+        .scaleEffect(model.shown || reduceMotion ? 1 : 0.55, anchor: .center)
+        .blur(radius: model.shown || reduceMotion ? 0 : 10)
         .opacity(model.shown ? 1 : 0)
         .animation(reduceMotion ? .easeOut(duration: 0.12)
-                   : model.shown ? .spring(duration: 0.34, bounce: 0.28) : .easeIn(duration: 0.14),
+                   : model.shown ? .spring(duration: 0.5, bounce: 0.45) : .easeIn(duration: 0.18),
                    value: model.shown)
         .padding(28) // room for the shadow and glow
         .onGeometryChange(for: CGSize.self) { $0.size } action: { onSize($0) }
