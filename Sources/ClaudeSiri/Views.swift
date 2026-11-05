@@ -628,6 +628,7 @@ struct CompactView: View {
                     ScrollViewReader { proxy in
                         ScrollView {
                             VStack(spacing: 0) {
+                                Color.clear.frame(height: 0).id("top")
                                 MarkdownText(text: a.text, size: 17)
                                     .foregroundStyle(a.isError ? Color.red.opacity(0.9) : Color(white: 0.92))
                                     .padding(.trailing, 36)
@@ -636,7 +637,9 @@ struct CompactView: View {
                             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { textHeight = $0 }
                         }
                         .frame(height: min(max(textHeight, 20), 380))
+                        // follow the stream while it is being written, then jump back to the start to read it
                         .onChange(of: a.text) { if model.busy { proxy.scrollTo("end", anchor: .bottom) } }
+                        .onChange(of: model.busy) { _, b in if !b { proxy.scrollTo("top", anchor: .top) } }
                     }
                     if let t = model.currentTool { ToolLine(text: t) }
                     if let st = a.stats, !model.busy { StatsLine(stats: st) }
