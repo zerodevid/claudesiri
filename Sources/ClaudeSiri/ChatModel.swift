@@ -120,6 +120,8 @@ final class ChatModel: ObservableObject {
     var onAttention: (() -> Void)?
     /// Called when an answer finishes: (text, duration in seconds).
     var onFinished: ((String, Double) -> Void)?
+    /// Hides the panel (set by AppDelegate).
+    var onHide: (() -> Void)?
     private var turnStart = Date()
     private var speechSink: Any?
 
@@ -384,6 +386,24 @@ final class ChatModel: ObservableObject {
         let t = a.calc?.copyText ?? a.text
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(t, forType: .string)
+    }
+
+    /// Copy the last answer, switch back to the app that was in front, and paste it there.
+    /// Pasting needs Accessibility permission; without it the answer is copied and the app is activated.
+    func pasteIntoPreviousApp() {
+        copyLast()
+        guard let app = contextApp else { return }
+        onHide?()
+        app.activate()
+        guard AXIsProcessTrusted() else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            let src = CGEventSource(stateID: .combinedSessionState)
+            for down in [true, false] {
+                let e = CGEvent(keyboardEventSource: src, virtualKey: 9, keyDown: down)   // kVK_ANSI_V
+                e?.flags = .maskCommand
+                e?.post(tap: .cghidEventTap)
+            }
+        }
     }
 
     /// Continue the same session in Terminal.app (claude --resume).

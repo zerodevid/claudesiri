@@ -26,6 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             guard let self, !self.panel.isVisible else { return }
             self.show()
         }
+        model.onHide = { [weak self] in self?.hide() }
         model.onFinished = { [weak self] text, secs in
             guard let self, !self.panel.isVisible || !NSApp.isActive && !self.panel.isKeyWindow, secs > 8 else { return }
             self.notify(text)

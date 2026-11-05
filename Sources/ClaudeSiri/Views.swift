@@ -531,6 +531,27 @@ struct HistoryList: View {
     }
 }
 
+/// Small text button under an answer.
+struct QuickAction: View {
+    let symbol: String
+    let title: String
+    let action: () -> Void
+    @State private var hover = false
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: symbol)
+                .font(.system(size: 11.5, weight: .medium))
+                .foregroundStyle(hover ? Color.white : Color(white: 0.7))
+                .padding(.horizontal, 10).padding(.vertical, 5)
+                .background(Capsule().fill(Color.white.opacity(hover ? 0.16 : 0.08)))
+        }
+        .buttonStyle(.plain)
+        .onHover { hover = $0 }
+        .lineLimit(1)
+    }
+}
+
 struct ToolLine: View {
     let text: String
     var body: some View {
@@ -668,7 +689,20 @@ struct CompactView: View {
                         .onChange(of: model.busy) { _, b in if !b { proxy.scrollTo("top", anchor: .top) } }
                     }
                     if let t = model.currentTool { ToolLine(text: t) }
-                    if let st = a.stats, !model.busy { StatsLine(stats: st) }
+                    if !model.busy {
+                        HStack(spacing: 8) {
+                            if let st = a.stats { StatsLine(stats: st) }
+                            Spacer(minLength: 8)
+                            if !a.isError, let app = model.contextAppName {
+                                QuickAction(symbol: "arrow.uturn.left", title: tr("Paste into \(app)", "Tempel ke \(app)")) {
+                                    model.pasteIntoPreviousApp()
+                                }
+                            }
+                            QuickAction(symbol: "arrow.up.left.and.arrow.down.right", title: tr("Open in chat", "Buka di chat")) {
+                                model.expanded = true
+                            }
+                        }
+                    }
                 }
             }
             .padding(24)
