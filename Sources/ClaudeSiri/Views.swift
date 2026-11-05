@@ -580,16 +580,11 @@ struct ThinkingDots: View {
 
 struct CompactView: View {
     @ObservedObject var model: ChatModel
-    var onClose: () -> Void
-    @State private var hover = false
+    var onClose: () -> Void   // Esc / click outside close the compact panel
     @State private var textHeight: CGFloat = 20
     @FocusState private var focused: Bool
 
     private var hasChat: Bool { !model.messages.isEmpty }
-    private var showControls: Bool {
-        hover || focused || !model.input.isEmpty || !model.attachments.isEmpty || model.selected != nil || model.speech.listening
-    }
-
     var body: some View {
         Group {
             if !hasChat {
@@ -618,19 +613,10 @@ struct CompactView: View {
                 }
             } else {
                 Shell(busy: model.busy || model.speech.listening) {
+                    // Fixed layout: nothing appears or disappears on hover. Hover-driven controls resized the
+                    // panel, which moved the edge under the cursor and made the panel bounce up and down.
                     VStack(alignment: .leading, spacing: 16) {
-                        if showControls {
-                            HStack {
-                                CircleButton(symbol: "xmark", help: tr("Close (Esc)", "Tutup (Esc)"), action: onClose)
-                                Spacer()
-                                CircleButton(symbol: "arrow.up.left.and.arrow.down.right", help: tr("Expand (⌘E)", "Perbesar (⌘E)")) {
-                                    model.expanded = true
-                                }
-                            }
-                            .transition(.opacity.combined(with: .move(edge: .top)))
-                        }
-
-                        if let q = model.lastUser, showControls || model.busy {
+                        if let q = model.lastUser {
                             Text((q.images.isEmpty ? "" : "🖼 \(q.images.count) · ") + q.text).font(.system(size: 13)).foregroundStyle(Theme.dim).lineLimit(2)
                                 .padding(.horizontal, 6)
                         }
@@ -641,25 +627,24 @@ struct CompactView: View {
                             PermissionCard(model: model, req: req)
                         }
 
-                        if showControls {
-                            SelectionChip(model: model)
-                            AttachmentStrip(model: model)
-                            HStack(spacing: 12) {
-                                CircleButton(symbol: "plus", help: tr("New chat (⌘N)", "Chat baru (⌘N)")) { model.newChat() }
-                                InputPill(model: model, focused: $focused)
+                        SelectionChip(model: model)
+                        AttachmentStrip(model: model)
+                        HStack(spacing: 12) {
+                            CircleButton(symbol: "plus", help: tr("New chat (⌘N)", "Chat baru (⌘N)")) { model.newChat() }
+                            InputPill(model: model, focused: $focused)
+                            CircleButton(symbol: "arrow.up.left.and.arrow.down.right", help: tr("Expand (⌘E)", "Perbesar (⌘E)")) {
+                                model.expanded = true
                             }
-                            .transition(.opacity.combined(with: .move(edge: .bottom)))
                         }
                     }
                     .padding(22)
                 }
             }
         }
-        .onHover { h in withAnimation(.spring(duration: 0.28)) { hover = h } }
         .animation(.spring(duration: 0.3), value: model.messages.count)
         .onAppear { focused = true }
         .onChange(of: model.focusTick) { focused = true }
-        .onChange(of: model.busy) { _, b in if b { focused = false } }
+        .onChange(of: model.busy) { _, b in if !b { focused = true } }   // ready for a follow-up
     }
 
     @ViewBuilder private var answerCard: some View {
