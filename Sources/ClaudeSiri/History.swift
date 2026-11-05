@@ -68,7 +68,8 @@ final class History: ObservableObject {
                 let title = Self.peekTitle(path: p) ?? tr("(untitled)", "(tanpa judul)")
                 out.append(SessionInfo(id: id, title: title, date: d, workDir: workDir, mine: mineIDs.contains(id)))
             }
-            await MainActor.run { self.all = out; self.loadingAll = false }
+            let found = out
+            await MainActor.run { self.all = found; self.loadingAll = false }
         }
     }
 
