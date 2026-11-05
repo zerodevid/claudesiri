@@ -68,6 +68,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                                                             description: "Remove build artifacts")]
             }),
             ("5-scope", { self.model.permissions = []; self.model.setPermMode(.always, scope: .hour) }),
+            ("5b-selected", {
+                self.model.setPermMode(.ask)
+                var q = ChatMessage(role: .user, text: "Check this address", context: "Selected text from Safari",
+                                    contextText: "0x7583a1c2d4e5f60718293a4b5c6d7e8f90a1b2c3\nBase · last active 2 days ago\nBalance 1.42 ETH\nFirst seen 2024-03-11")
+                q.images = []
+                self.model.messages = [q, ChatMessage(role: .assistant, text: "That address is a regular wallet on Base.")]
+            }),
             ("6-settings", { self.model.setPermMode(.ask); self.openSettings() }),
         ]
         var i = 0
@@ -75,6 +82,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             guard i < states.count else { NSApp.terminate(nil); return }
             let (name, apply) = states[i]; i += 1
             apply()
+            self.model.shown = true   // the panel is not key here, so a resign-key hide may have run
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
                 let win = name == "6-settings" ? NSApp.windows.first { $0.contentViewController is NSHostingController<SettingsView> } : self.panel
                 guard let v = win?.contentView, let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) else { next(); return }
