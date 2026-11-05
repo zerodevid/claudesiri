@@ -362,7 +362,11 @@ final class ChatModel: ObservableObject {
     /// Continue the same session in Terminal.app (claude --resume).
     func openInTerminal() {
         let dir = workDir.replacingOccurrences(of: "'", with: "'\\''")
-        var cmd = "cd '\(dir)' && unset ANTHROPIC_API_KEY ANTHROPIC_BASE_URL && claude"
+        var cmd = "cd '\(dir)' && unset ANTHROPIC_API_KEY ANTHROPIC_BASE_URL && "
+        if let cfg = ClaudeRunner.customConfigDir {
+            cmd += "export CLAUDE_CONFIG_DIR='\(cfg.replacingOccurrences(of: "'", with: "'\\''"))' && "
+        }
+        cmd += "claude"
         if let sid = sessionID { cmd += " --resume \(sid)" }
         let script = "tell application \"Terminal\"\nactivate\ndo script \"\(cmd.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\""))\"\nend tell"
         var err: NSDictionary?

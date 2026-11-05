@@ -50,12 +50,30 @@ final class ClaudeRunner {
         return candidates.first { !$0.isEmpty && FileManager.default.isExecutableFile(atPath: $0) }
     }
 
-    /// The claude config folder in use (for reading session history).
-    static var configDir: String {
+    /// Custom claude config folder from settings (`claudeConfigDir`), if any. Empty = CLI default.
+    static var customConfigDir: String? {
         if let d = ProcessInfo.processInfo.environment["CLAUDE_CONFIG_DIR"], !d.isEmpty { return d }
-        let pulse = NSHomeDirectory() + "/.claude-pulse/active"
-        if FileManager.default.fileExists(atPath: pulse) { return pulse }
-        return NSHomeDirectory() + "/.claude"
+        if let d = UserDefaults.standard.string(forKey: "claudeConfigDir"), !d.isEmpty {
+            return (d as NSString).expandingTildeInPath
+        }
+        return nil
+    }
+
+    /// The claude config folder in use (for reading session history).
+    static var configDir: String { customConfigDir ?? NSHomeDirectory() + "/.claude" }
+
+    /// Environment for every `claude` child process: API keys inherited from the shell are dropped so the
+    /// claude.ai login is used, the custom config folder is applied, and common bin folders are added to PATH
+    /// (GUI apps do not inherit the shell PATH).
+    static func environment() -> [String: String] {
+        var env = ProcessInfo.processInfo.environment
+        for k in ["ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT"] {
+            env.removeValue(forKey: k)
+        }
+        if let d = customConfigDir { env["CLAUDE_CONFIG_DIR"] = d }
+        let home = NSHomeDirectory()
+        env["PATH"] = "\(home)/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:" + (env["PATH"] ?? "")
+        return env
     }
 
     /// content = Anthropic message blocks: [{"type":"text",...}, {"type":"image",...}]
@@ -160,18 +178,7 @@ final class ClaudeRunner {
         p.arguments = args
         p.currentDirectoryURL = URL(fileURLWithPath: workDir)
 
-        // Env: drop API keys inherited from .zshrc so the claude.ai login is used (and the active Claude Pulse account, if any).
-        var env = ProcessInfo.processInfo.environment
-        for k in ["ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT"] {
-            env.removeValue(forKey: k)
-        }
-        let home = NSHomeDirectory()
-        if env["CLAUDE_CONFIG_DIR"] == nil,
-           FileManager.default.fileExists(atPath: "\(home)/.claude-pulse/active") {
-            env["CLAUDE_CONFIG_DIR"] = "\(home)/.claude-pulse/active"
-        }
-        env["PATH"] = "\(home)/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:" + (env["PATH"] ?? "")
-        p.environment = env
+        p.environment = Self.environment()
 
         let out = Pipe(), err = Pipe(), inp = Pipe()
         p.standardOutput = out
