@@ -110,6 +110,8 @@ final class ChatModel: ObservableObject {
     @Published var showHistory = false
     @Published var modelChoice: String = UserDefaults.standard.string(forKey: "model") ?? ""
     @Published var micText: String?
+    /// Drives the show/hide animation of the panel content (set by AppDelegate).
+    @Published var shown = false
     @Published private(set) var permMode = PermMode.current
     @Published private(set) var permScope = PermScope.current
     @Published private(set) var permUntil = PermScope.until

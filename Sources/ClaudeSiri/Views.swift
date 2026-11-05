@@ -23,6 +23,7 @@ struct RootView: View {
     var onSize: (CGSize) -> Void
     var onClose: () -> Void
     @AppStorage("uiLanguage") private var language = "system"
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Group {
@@ -36,6 +37,14 @@ struct RootView: View {
             }
         }
         .id(language)   // rebuild every view when the UI language changes
+        // Show/hide effect: grows from 94 % and drops in from just above, anchored at the top like Spotlight.
+        // scaleEffect/offset do not change layout, so the measured panel size stays correct while animating.
+        .scaleEffect(model.shown || reduceMotion ? 1 : 0.94, anchor: .top)
+        .offset(y: model.shown || reduceMotion ? 0 : -10)
+        .opacity(model.shown ? 1 : 0)
+        .animation(reduceMotion ? .easeOut(duration: 0.12)
+                   : model.shown ? .spring(duration: 0.34, bounce: 0.28) : .easeIn(duration: 0.14),
+                   value: model.shown)
         .padding(28) // room for the shadow and glow
         .onGeometryChange(for: CGSize.self) { $0.size } action: { onSize($0) }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

@@ -156,17 +156,50 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         panel.contentView?.frame = NSRect(origin: .zero, size: f.size)
     }
 
+    /// True while the hide animation runs; the window is ordered out when it ends.
+    private var hiding = false
+
     func show() {
+        let wasHidden = !panel.isVisible || hiding
         if !panel.isVisible { model.captureContext() }
+        hiding = false
         Rates.shared.refreshIfStale()
+        if wasHidden && !panel.isVisible {
+            model.shown = false   // start from the "hidden" pose, then animate in
+            panel.alphaValue = 0
+        }
         panel.makeKeyAndOrderFront(nil)
         panel.orderFrontRegardless()
         model.focusTick += 1
+        DispatchQueue.main.async {
+            self.model.shown = true
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.16
+                ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                self.panel.animator().alphaValue = 1
+            }
+        }
     }
 
-    func hide() { panel.orderOut(nil) }
+    func hide() {
+        guard panel.isVisible, !hiding else { return }
+        hiding = true
+        model.shown = false
+        NSAnimationContext.runAnimationGroup({ ctx in
+            ctx.duration = 0.15
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            self.panel.animator().alphaValue = 0
+        }, completionHandler: {
+            MainActor.assumeIsolated {
+                // show() may have been called while fading out; then keep the panel
+                guard self.hiding else { return }
+                self.hiding = false
+                self.panel.orderOut(nil)
+            }
+        })
+    }
 
-    func toggle() { panel.isVisible && panel.isKeyWindow ? hide() : show() }
+    func toggle() { panel.isVisible && panel.isKeyWindow && !hiding ? hide() : show() }
 
     func windowDidResignKey(_ notification: Notification) {
         // Compact mode: clicking outside hides it (like Spotlight/Siri). Expanded mode keeps floating.
