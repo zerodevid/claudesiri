@@ -27,7 +27,7 @@ final class History: ObservableObject {
             let s = mine.remove(at: i); mine.insert(s, at: 0)
         } else {
             let t = title.trimmingCharacters(in: .whitespacesAndNewlines)
-            mine.insert(SessionInfo(id: id, title: t.isEmpty ? "(gambar)" : String(t.prefix(80)), date: Date(), workDir: workDir), at: 0)
+            mine.insert(SessionInfo(id: id, title: t.isEmpty ? tr("(image)", "(gambar)") : String(t.prefix(80)), date: Date(), workDir: workDir), at: 0)
         }
         if mine.count > 300 { mine.removeLast(mine.count - 300) }
         save()
@@ -65,7 +65,7 @@ final class History: ObservableObject {
             var out: [SessionInfo] = []
             for (p, d) in dated.prefix(60) {
                 let id = ((p as NSString).lastPathComponent as NSString).deletingPathExtension
-                let title = Self.peekTitle(path: p) ?? "(tanpa judul)"
+                let title = Self.peekTitle(path: p) ?? tr("(untitled)", "(tanpa judul)")
                 out.append(SessionInfo(id: id, title: title, date: d, workDir: workDir, mine: mineIDs.contains(id)))
             }
             await MainActor.run { self.all = out; self.loadingAll = false }
@@ -112,7 +112,9 @@ final class History: ObservableObject {
         guard var t = text?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty,
               !t.hasPrefix("<local-command"), !t.hasPrefix("<command-"), !t.hasPrefix("Caveat:") else { return nil }
         // drop the context block injected by ClaudeSiri
-        if let r = t.range(of: "</konteks>") { t = String(t[r.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines) }
+        for tag in ["</context>", "</konteks>"] {   // </konteks> = sessions from older versions
+            if let r = t.range(of: tag) { t = String(t[r.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines) }
+        }
         if t.hasPrefix("<system-reminder>") { return nil }
         return t
     }

@@ -98,7 +98,7 @@ final class ClaudeRunner {
     func respond(id: String, allow: Bool, input: [String: Any], message: String? = nil) {
         let inner: [String: Any] = allow
             ? ["behavior": "allow", "updatedInput": input]
-            : ["behavior": "deny", "message": message ?? "User menolak izin ini."]
+            : ["behavior": "deny", "message": message ?? "The user denied this permission."]
         write(["type": "control_response",
                "response": ["subtype": "success", "request_id": id, "response": inner]])
     }
@@ -179,7 +179,7 @@ final class ClaudeRunner {
     private func start(sessionID: String?, workDir: String, allowed: [String]) -> Bool {
         guard let path = Self.claudePath() else {
             onEvent?(.finished(isError: true, stopped: false,
-                               result: "CLI `claude` tidak ketemu. Set path: defaults write id.zerodev.claudesiri claudePath /path/ke/claude",
+                               result: tr("The `claude` CLI was not found. Install Claude Code, or set its path in Settings › Claude.", "CLI `claude` tidak ketemu. Pasang Claude Code, atau isi path-nya di Pengaturan › Claude."),
                                stats: nil))
             return false
         }
@@ -236,7 +236,7 @@ final class ClaudeRunner {
                     self.emit(.finished(isError: false, stopped: true, result: nil, stats: nil))
                 } else {
                     self.emit(.finished(isError: true, stopped: false,
-                                        result: msg.isEmpty ? "claude berhenti (kode \(proc.terminationStatus))" : msg,
+                                        result: msg.isEmpty ? tr("claude exited (code \(proc.terminationStatus))", "claude berhenti (kode \(proc.terminationStatus))") : msg,
                                         stats: nil))
                 }
             }
@@ -270,7 +270,7 @@ final class ClaudeRunner {
                                  description: req["description"] as? String))
             } else {
                 write(["type": "control_response",
-                       "response": ["subtype": "error", "request_id": id, "error": "tidak didukung"]])
+                       "response": ["subtype": "error", "request_id": id, "error": "not supported"]])
             }
         case "stream_event":
             guard let ev = obj["event"] as? [String: Any], let et = ev["type"] as? String else { return }

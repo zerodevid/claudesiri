@@ -22,6 +22,7 @@ struct RootView: View {
     @ObservedObject var model: ChatModel
     var onSize: (CGSize) -> Void
     var onClose: () -> Void
+    @AppStorage("uiLanguage") private var language = "system"
 
     var body: some View {
         Group {
@@ -34,6 +35,7 @@ struct RootView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .id(language)   // rebuild every view when the UI language changes
         .padding(28) // room for the shadow and glow
         .onGeometryChange(for: CGSize.self) { $0.size } action: { onSize($0) }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -143,7 +145,7 @@ struct Shell<Content: View>: View {
 /// Capsule-shaped input field.
 struct InputPill: View {
     @ObservedObject var model: ChatModel
-    var placeholder = "Tanya Claude"
+    var placeholder = tr("Ask Claude", "Tanya Claude")
     var big = false
     @FocusState.Binding var focused: Bool
 
@@ -153,7 +155,7 @@ struct InputPill: View {
                 Image(systemName: "photo.badge.plus").font(.system(size: big ? 20 : 16)).foregroundStyle(Theme.dim)
             }
             .buttonStyle(.plain)
-            .help("Lampirkan gambar (atau ⌘V / seret gambar ke sini)")
+            .help(tr("Attach an image (or ⌘V / drop one here)", "Lampirkan gambar (atau ⌘V / seret gambar ke sini)"))
             if let app = model.contextAppName {
                 Button { model.attachWindowShot() } label: {
                     ZStack(alignment: .bottomTrailing) {
@@ -174,7 +176,7 @@ struct InputPill: View {
                     .padding(.trailing, 5)
                 }
                 .buttonStyle(.plain)
-                .help("Lampirkan screenshot jendela \(app)")
+                .help(tr("Attach a screenshot of the \(app) window", "Lampirkan screenshot jendela \(app)"))
             }
             TextField("", text: $model.input, prompt: Text(placeholder).foregroundColor(Theme.dim), axis: .vertical)
                 .textFieldStyle(.plain)
@@ -196,13 +198,13 @@ struct InputPill: View {
                         .animation(.easeOut(duration: 0.1), value: model.speech.level)
                 }
                 .buttonStyle(.plain)
-                .help("Selesai bicara (otomatis terkirim setelah diam)")
+                .help(tr("Done talking (sends automatically after a pause)", "Selesai bicara (otomatis terkirim setelah diam)"))
             } else {
                 Button { model.toggleMic() } label: {
                     Image(systemName: "mic").font(.system(size: big ? 22 : 17)).foregroundStyle(Theme.dim)
                 }
                 .buttonStyle(.plain)
-                .help("Bicara (⌘⇧Space)")
+                .help(tr("Talk (⌥⇧Space)", "Bicara (⌥⇧Space)"))
             }
         }
         .padding(.horizontal, big ? 30 : 20)
@@ -249,7 +251,7 @@ struct CalcCard: View {
                 }
             }
             Spacer(minLength: 0)
-            CircleButton(symbol: copied ? "checkmark" : "doc.on.doc.fill", size: 34, tint: .blue, help: "Salin angka") {
+            CircleButton(symbol: copied ? "checkmark" : "doc.on.doc.fill", size: 34, tint: .blue, help: tr("Copy number", "Salin angka")) {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(result.copyText, forType: .string)
                 copied = true
@@ -297,10 +299,10 @@ struct PermissionCard: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Image(systemName: "hand.raised.fill").foregroundStyle(.orange)
-                Text("Claude minta izin · \(req.tool)").font(.system(size: 14, weight: .semibold))
+                Text(tr("Claude asks permission · \(req.tool)", "Claude minta izin · \(req.tool)")).font(.system(size: 14, weight: .semibold))
                 Spacer()
                 if model.permissions.count > 1 {
-                    Text("+\(model.permissions.count - 1) antre").font(.system(size: 12)).foregroundStyle(Theme.dim)
+                    Text(tr("+\(model.permissions.count - 1) queued", "+\(model.permissions.count - 1) antre")).font(.system(size: 12)).foregroundStyle(Theme.dim)
                 }
             }
             Text(req.title).font(.system(size: 14)).foregroundStyle(Color(white: 0.85))
@@ -318,18 +320,18 @@ struct PermissionCard: View {
                 .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.06)))
             }
             HStack(spacing: 10) {
-                pill("Tolak", fg: .white, bg: Color.white.opacity(0.12)) { model.answerPermission(req, allow: false) }
+                pill(tr("Deny", "Tolak"), fg: .white, bg: Color.white.opacity(0.12)) { model.answerPermission(req, allow: false) }
                     .keyboardShortcut(.escape, modifiers: [])
                 Spacer()
                 if let label = req.ruleLabel {
-                    pill("Selalu: \(label)", fg: .white, bg: Color.white.opacity(0.12)) {
+                    pill(tr("Always: \(label)", "Selalu: \(label)"), fg: .white, bg: Color.white.opacity(0.12)) {
                         model.answerPermission(req, allow: true, always: true)
                     }
-                    .help("Simpan aturan \(req.ruleSuggestion ?? "") — bisa dihapus dari menu ✦ › Aturan izin")
+                    .help(tr("Save the rule \(req.ruleSuggestion ?? "") (remove it in Settings › Permissions)", "Simpan aturan \(req.ruleSuggestion ?? "") (bisa dihapus di Pengaturan › Izin)"))
                 }
-                pill("Izinkan semua", fg: .white, bg: Color.white.opacity(0.12)) { model.setPermMode(.always) }
-                    .help("Setujui ini dan semua permintaan berikutnya tanpa tanya (mode Selalu izinkan, bisa diubah di atas)")
-                pill("Izinkan", fg: .black, bg: .white) { model.answerPermission(req, allow: true) }
+                pill(tr("Allow all", "Izinkan semua"), fg: .white, bg: Color.white.opacity(0.12)) { model.setPermMode(.always) }
+                    .help(tr("Approve this and every later request without asking (Always allow mode, for this chat)", "Setujui ini dan semua permintaan berikutnya tanpa tanya (mode Selalu izinkan, untuk chat ini)"))
+                pill(tr("Allow", "Izinkan"), fg: .black, bg: .white) { model.answerPermission(req, allow: true) }
                     .keyboardShortcut(.return, modifiers: [.command])
             }
         }
@@ -355,14 +357,14 @@ struct SelectionChip: View {
             HStack(spacing: 8) {
                 Image(systemName: "text.quote").foregroundStyle(Theme.accent)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Teks terpilih · \(sel.app)").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.dim)
+                    Text(tr("Selected text · \(sel.app)", "Teks terpilih · \(sel.app)")).font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.dim)
                     Text(sel.text.replacingOccurrences(of: "\n", with: " ")).font(.system(size: 12))
                         .foregroundStyle(Color(white: 0.85)).lineLimit(1)
                 }
                 Spacer(minLength: 4)
                 Button { model.selected = nil } label: {
                     Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.dim)
-                }.buttonStyle(.plain).help("Jangan sertakan")
+                }.buttonStyle(.plain).help(tr("Don't include", "Jangan sertakan"))
             }
             .padding(.horizontal, 14).padding(.vertical, 8)
             .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.white.opacity(0.07)))
@@ -385,13 +387,16 @@ struct StatsLine: View {
         return parts.isEmpty ? name : name + " " + parts.prefix(2).joined(separator: ".")
     }
     static func tokens(_ n: Int) -> String {
-        n >= 1000 ? String(format: "%.1frb", Double(n) / 1000).replacingOccurrences(of: ".", with: ",") : "\(n)"
+        guard n >= 1000 else { return "\(n)" }
+        let s = String(format: "%.1f", Double(n) / 1000)
+        return UILanguage.isIndonesian ? s.replacingOccurrences(of: ".", with: ",") + "rb" : s + "k"
     }
     static func format(_ s: TurnStats) -> String {
         var parts: [String] = []
         if let m = modelName(s.model) { parts.append(m) }
-        parts.append(String(format: "%.1f dtk", Double(s.durationMs) / 1000).replacingOccurrences(of: ".", with: ","))
-        parts.append("\(tokens(s.inputTokens)) → \(tokens(s.outputTokens)) token")
+        let secs = String(format: "%.1f", Double(s.durationMs) / 1000)
+        parts.append(UILanguage.isIndonesian ? secs.replacingOccurrences(of: ".", with: ",") + " dtk" : secs + " s")
+        parts.append("\(tokens(s.inputTokens)) → \(tokens(s.outputTokens)) " + tr("tokens", "token"))
         if s.costUSD > 0 { parts.append(String(format: "$%.4f", s.costUSD)) }
         return parts.joined(separator: " · ")
     }
@@ -417,7 +422,7 @@ struct ModelMenu: View {
             .background(Capsule().fill(Color.white.opacity(0.1)))
         }
         .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
-        .help("Pilih model")
+        .help(tr("Choose model", "Pilih model"))
     }
 }
 
@@ -444,7 +449,7 @@ struct PermModeMenu: View {
             .background(Capsule().fill(m == .bypass ? Color.red.opacity(0.18) : Color.white.opacity(0.1)))
         }
         .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
-        .help("Mode izin: \(m.label) — \(m.detail)")
+        .help(tr("Permission mode", "Mode izin") + ": \(m.label) — \(m.detail)")
     }
 }
 
@@ -465,18 +470,18 @@ struct HistoryList: View {
         VStack(alignment: .leading, spacing: 10) {
             Picker("", selection: $showAll) {
                 Text("ClaudeSiri").tag(false)
-                Text("Semua sesi").tag(true)
+                Text(tr("All sessions", "Semua sesi")).tag(true)
             }
             .pickerStyle(.segmented).labelsHidden()
             .onChange(of: showAll) { _, v in if v { history.loadAll(workDir: model.workDir) } }
-            TextField("Cari…", text: $query).textFieldStyle(.plain).font(.system(size: 13))
+            TextField(tr("Search…", "Cari…"), text: $query).textFieldStyle(.plain).font(.system(size: 13))
                 .padding(.horizontal, 10).padding(.vertical, 7)
                 .background(RoundedRectangle(cornerRadius: 9).fill(Color.white.opacity(0.07)))
             if showAll && history.loadingAll { ProgressView().controlSize(.small) }
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 2) {
                     if items.isEmpty {
-                        Text("Belum ada riwayat").font(.system(size: 12)).foregroundStyle(Theme.dim).padding(.top, 8)
+                        Text(tr("No history yet", "Belum ada riwayat")).font(.system(size: 12)).foregroundStyle(Theme.dim).padding(.top, 8)
                     }
                     ForEach(items) { it in
                         Button { model.loadSession(it) } label: {
@@ -493,8 +498,8 @@ struct HistoryList: View {
                         }
                         .buttonStyle(.plain)
                         .contextMenu {
-                            Button("Lanjutkan di Terminal") { model.loadSession(it); model.openInTerminal() }
-                            if it.mine { Button("Hapus dari daftar") { history.forget(it.id) } }
+                            Button(tr("Continue in Terminal", "Lanjutkan di Terminal")) { model.loadSession(it); model.openInTerminal() }
+                            if it.mine { Button(tr("Remove from list", "Hapus dari daftar")) { history.forget(it.id) } }
                         }
                     }
                 }
@@ -562,8 +567,9 @@ struct CompactView: View {
                             AttachmentStrip(model: model)
                         }
                         InputPill(model: model,
-                                  placeholder: model.selected != nil ? "Tanya soal teks ini"
-                                      : !model.attachments.isEmpty ? "Tanya soal gambar ini" : "Cari atau Tanya Claude",
+                                  placeholder: model.selected != nil ? tr("Ask about this text", "Tanya soal teks ini")
+                                      : !model.attachments.isEmpty ? tr("Ask about this image", "Tanya soal gambar ini")
+                                      : tr("Search or ask Claude", "Cari atau Tanya Claude"),
                                   big: true, focused: $focused)
                         if let p = calc { CalcCard(result: p) }
                     }
@@ -574,9 +580,9 @@ struct CompactView: View {
                     VStack(alignment: .leading, spacing: 16) {
                         if showControls {
                             HStack {
-                                CircleButton(symbol: "xmark", help: "Tutup (Esc)", action: onClose)
+                                CircleButton(symbol: "xmark", help: tr("Close (Esc)", "Tutup (Esc)"), action: onClose)
                                 Spacer()
-                                CircleButton(symbol: "arrow.up.left.and.arrow.down.right", help: "Perbesar (⌘E)") {
+                                CircleButton(symbol: "arrow.up.left.and.arrow.down.right", help: tr("Expand (⌘E)", "Perbesar (⌘E)")) {
                                     model.expanded = true
                                 }
                             }
@@ -598,8 +604,8 @@ struct CompactView: View {
                             SelectionChip(model: model)
                             AttachmentStrip(model: model)
                             HStack(spacing: 12) {
-                                CircleButton(symbol: "plus", help: "Chat baru (⌘N)") { model.newChat() }
-                                InputPill(model: model, placeholder: "Tanya Claude", focused: $focused)
+                                CircleButton(symbol: "plus", help: tr("New chat (⌘N)", "Chat baru (⌘N)")) { model.newChat() }
+                                InputPill(model: model, focused: $focused)
                             }
                             .transition(.opacity.combined(with: .move(edge: .bottom)))
                         }
@@ -650,7 +656,7 @@ struct CompactView: View {
             .background(RoundedRectangle(cornerRadius: 26, style: .continuous).fill(Theme.inner))
             .overlay(alignment: .topTrailing) {
                 if !a.text.isEmpty && !model.busy {
-                    CircleButton(symbol: "doc.on.doc.fill", size: 34, tint: .blue, help: "Salin jawaban") { model.copyLast() }
+                    CircleButton(symbol: "doc.on.doc.fill", size: 34, tint: .blue, help: tr("Copy answer", "Salin jawaban")) { model.copyLast() }
                         .padding(14)
                 }
             }
@@ -669,9 +675,9 @@ struct ExpandedView: View {
         Shell(busy: model.busy || model.speech.listening) {
             VStack(spacing: 0) {
                 HStack(spacing: 10) {
-                    CircleButton(symbol: "xmark", size: 36, help: "Tutup (Esc)", action: onClose)
+                    CircleButton(symbol: "xmark", size: 36, help: tr("Close (Esc)", "Tutup (Esc)"), action: onClose)
                     CircleButton(symbol: "clock.arrow.circlepath", size: 36, tint: model.showHistory ? Theme.accent : .white,
-                                 help: "Riwayat chat (⌘Y)") {
+                                 help: tr("Chat history (⌘Y)", "Riwayat chat (⌘Y)")) {
                         withAnimation(.spring(duration: 0.3)) { model.showHistory.toggle() }
                     }
                     Spacer()
@@ -682,9 +688,9 @@ struct ExpandedView: View {
                         PermModeMenu(model: model)
                     }
                     Spacer()
-                    CircleButton(symbol: "terminal", size: 36, help: "Lanjutkan di Terminal") { model.openInTerminal() }
-                    CircleButton(symbol: "square.and.pencil", size: 36, help: "Chat baru (⌘N)") { model.newChat() }
-                    CircleButton(symbol: "arrow.down.right.and.arrow.up.left", size: 36, help: "Perkecil (⌘E)") {
+                    CircleButton(symbol: "terminal", size: 36, help: tr("Continue in Terminal", "Lanjutkan di Terminal")) { model.openInTerminal() }
+                    CircleButton(symbol: "square.and.pencil", size: 36, help: tr("New chat (⌘N)", "Chat baru (⌘N)")) { model.newChat() }
+                    CircleButton(symbol: "arrow.down.right.and.arrow.up.left", size: 36, help: tr("Collapse (⌘E)", "Perkecil (⌘E)")) {
                         model.expanded = false
                     }
                 }
@@ -705,7 +711,7 @@ struct ExpandedView: View {
                             if model.messages.isEmpty {
                                 VStack(spacing: 10) {
                                     Image(systemName: "sparkle").font(.system(size: 34)).foregroundStyle(Theme.accent)
-                                    Text("Mau tanya apa?").font(.title3).foregroundStyle(Theme.dim)
+                                    Text(tr("What would you like to ask?", "Mau tanya apa?")).font(.title3).foregroundStyle(Theme.dim)
                                 }
                                 .frame(maxWidth: .infinity).padding(.top, 160)
                             }
@@ -730,7 +736,7 @@ struct ExpandedView: View {
                 SelectionChip(model: model).padding(.horizontal, 18).padding(.top, 8)
                 AttachmentStrip(model: model).padding(.horizontal, 18)
                 HStack(spacing: 12) {
-                    CircleButton(symbol: "plus", help: "Chat baru (⌘N)") { model.newChat() }
+                    CircleButton(symbol: "plus", help: tr("New chat (⌘N)", "Chat baru (⌘N)")) { model.newChat() }
                     InputPill(model: model, focused: $focused)
                 }
                 .padding(18)
@@ -778,7 +784,7 @@ struct ExpandedView: View {
                             }
                         }
                     } label: {
-                        Text("\(m.tools.count) tool dipakai").font(.system(size: 12)).foregroundStyle(Theme.dim)
+                        Text(tr("\(m.tools.count) tools used", "\(m.tools.count) tool dipakai")).font(.system(size: 12)).foregroundStyle(Theme.dim)
                     }
                 }
                 if m.text.isEmpty {

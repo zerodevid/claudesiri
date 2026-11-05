@@ -175,15 +175,23 @@ enum Calculator {
             }
             return "1 \(c) = \(formatMoney(r, tgt, precise: true))"
         }
-        if !notes.isEmpty, let u = rates.updated {
-            let f = DateFormatter(); f.locale = Locale(identifier: "id_ID")
-            f.dateFormat = Calendar.current.isDateInToday(u) ? "HH.mm" : "d MMM HH.mm"
-            notes.append("kurs \(f.string(from: u))")
-        }
+        if !notes.isEmpty, let u = rates.updated { notes.append(rateAge(u)) }
         let head = cur == tgt ? pretty + " =" : (target != nil || !hasOp ? pretty + " → " + tgt : pretty + " ≈")
         return CalcResult(expression: head,
                           value: main, copyText: plainNumber(out, tgt),
                           secondary: secondary, note: notes.isEmpty ? nil : notes.joined(separator: " · "))
+    }
+
+    /// "rates 19.21", or a warning when the cached rates are old (offline / API down).
+    static func rateAge(_ u: Date, now: Date = Date()) -> String {
+        if now.timeIntervalSince(u) > 6 * 3600 {
+            let r = RelativeDateTimeFormatter(); r.locale = uiLocale; r.unitsStyle = .full
+            return "⚠︎ " + tr("rates from \(r.localizedString(for: u, relativeTo: now)), could not refresh",
+                              "kurs \(r.localizedString(for: u, relativeTo: now)), gagal diperbarui")
+        }
+        let f = DateFormatter(); f.locale = uiLocale
+        f.dateFormat = Calendar.current.isDate(u, inSameDayAs: now) ? "HH.mm" : "d MMM HH.mm"
+        return tr("rates ", "kurs ") + f.string(from: u)
     }
 
     // MARK: tokenizer
@@ -371,7 +379,7 @@ enum Calculator {
 
     static func formatNumber(_ x: Double) -> String {
         let f = NumberFormatter()
-        f.locale = Locale(identifier: "id_ID")
+        f.locale = uiLocale
         f.numberStyle = .decimal
         if x != 0 && abs(x) < 0.0001 {
             f.usesSignificantDigits = true; f.maximumSignificantDigits = 6
@@ -383,7 +391,7 @@ enum Calculator {
 
     static func formatMoney(_ x: Double, _ cur: String, precise: Bool = false) -> String {
         let f = NumberFormatter()
-        f.locale = Locale(identifier: "id_ID")
+        f.locale = uiLocale
         if Rates.crypto[cur] != nil {
             f.numberStyle = .decimal
             if abs(x) >= 1 { f.maximumFractionDigits = 6 } else { f.usesSignificantDigits = true; f.maximumSignificantDigits = 6 }

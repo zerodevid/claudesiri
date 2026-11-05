@@ -41,7 +41,7 @@ final class PermissionRules: ObservableObject {
             let prefix = (multi.contains(first) && words.count > 1 && !words[1].hasPrefix("-")) ? "\(first) \(words[1])" : first
             return ("Bash(\(prefix):*)", "\(prefix) …")
         case "Edit", "MultiEdit", "Write", "NotebookEdit":
-            return ("Edit", "edit file")
+            return ("Edit", tr("edit files", "edit file"))
         default:
             return (tool, tool)
         }
@@ -68,9 +68,9 @@ enum PermMode: String, CaseIterable {
 
     var label: String {
         switch self {
-        case .ask: return "Tanya dulu"
-        case .always: return "Selalu izinkan"
-        case .bypass: return "Lewati semua izin"
+        case .ask: return tr("Ask first", "Tanya dulu")
+        case .always: return tr("Always allow", "Selalu izinkan")
+        case .bypass: return tr("Skip all permissions", "Lewati semua izin")
         }
     }
     var symbol: String {
@@ -82,9 +82,9 @@ enum PermMode: String, CaseIterable {
     }
     var detail: String {
         switch self {
-        case .ask: return "Kartu izin muncul untuk tiap tool yang mengubah sesuatu"
-        case .always: return "Semua permintaan izin langsung disetujui otomatis"
-        case .bypass: return "--dangerously-skip-permissions: Claude tidak pernah minta izin sama sekali"
+        case .ask: return tr("A permission card appears for every tool that changes something", "Kartu izin muncul untuk tiap tool yang mengubah sesuatu")
+        case .always: return tr("Every permission request is approved automatically", "Semua permintaan izin langsung disetujui otomatis")
+        case .bypass: return tr("--dangerously-skip-permissions: Claude never asks at all", "--dangerously-skip-permissions: Claude tidak pernah minta izin sama sekali")
         }
     }
 

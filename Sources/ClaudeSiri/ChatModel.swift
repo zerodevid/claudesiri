@@ -65,16 +65,16 @@ struct PermissionRequest: Identifiable, Equatable {
         func str(_ k: String) -> String? { input[k] as? String }
         switch tool {
         case "Bash":
-            title = description ?? str("description") ?? "Jalankan perintah"
+            title = description ?? str("description") ?? tr("Run a command", "Jalankan perintah")
             detail = str("command") ?? ""
         case "Edit", "MultiEdit":
-            title = "Ubah file"
+            title = tr("Edit a file", "Ubah file")
             let path = str("file_path") ?? ""
             let old = str("old_string").map { "− " + $0.prefix(300) } ?? ""
             let new = str("new_string").map { "+ " + $0.prefix(300) } ?? ""
             detail = [path, old, new].filter { !$0.isEmpty }.joined(separator: "\n")
         case "Write":
-            title = "Tulis file"
+            title = tr("Write a file", "Tulis file")
             detail = (str("file_path") ?? "") + "\n" + String((str("content") ?? "").prefix(400))
         default:
             title = description ?? tool
@@ -173,7 +173,7 @@ final class ChatModel: ObservableObject {
         guard let app = contextApp else { return }
         if let img = ScreenContext.captureWindow(of: app) { addImages([img]) }
         else if !CGPreflightScreenCaptureAccess() {
-            messages.append(ChatMessage(role: .assistant, text: "Butuh izin **Screen Recording** untuk ClaudeSiri (System Settings › Privacy & Security › Screen & System Audio Recording). Setelah diizinkan, buka ulang app-nya.", isError: true))
+            messages.append(ChatMessage(role: .assistant, text: tr("ClaudeSiri needs **Screen Recording** permission (System Settings › Privacy & Security › Screen & System Audio Recording). Reopen the app after allowing it.", "Butuh izin **Screen Recording** untuk ClaudeSiri (System Settings › Privacy & Security › Screen & System Audio Recording). Setelah diizinkan, buka ulang app-nya."), isError: true))
         }
     }
 
@@ -215,7 +215,7 @@ final class ChatModel: ObservableObject {
         selected = nil
         let firstOfChat = messages.allSatisfy { $0.calc != nil }
         messages.append(ChatMessage(role: .user, text: text, images: atts.map(\.image),
-                                    context: sel.map { "Teks terpilih dari \($0.app)" }))
+                                    context: sel.map { tr("Selected text from \($0.app)", "Teks terpilih dari \($0.app)") }))
         messages.append(ChatMessage(role: .assistant, text: ""))
         busy = true
         currentTool = nil
@@ -224,13 +224,14 @@ final class ChatModel: ObservableObject {
         var content: [[String: Any]] = atts.map {
             ["type": "image", "source": ["type": "base64", "media_type": $0.mediaType, "data": $0.base64]]
         }
-        var prompt = text.isEmpty ? "Lihat gambar ini." : text
+        var prompt = text.isEmpty ? tr("Look at this image.", "Lihat gambar ini.") : text
         if let sel {
-            prompt = "<konteks>Teks yang sedang saya pilih di \(sel.app):\n\"\"\"\n\(sel.text)\n\"\"\"</konteks>\n\n" + prompt
+            prompt = "<context>" + tr("Text I have selected in \(sel.app):", "Teks yang sedang saya pilih di \(sel.app):")
+                + "\n\"\"\"\n\(sel.text)\n\"\"\"</context>\n\n" + prompt
         }
         content.append(["type": "text", "text": prompt])
         turnStart = Date()
-        let title = text.isEmpty ? "(gambar)" : text
+        let title = text.isEmpty ? tr("(image)", "(gambar)") : text
 
         runner.send(content: content, sessionID: sessionID, workDir: workDir,
                     allowed: PermissionRules.shared.rules) { [weak self] ev in
@@ -266,9 +267,9 @@ final class ChatModel: ObservableObject {
                     self.messages[idx].isError = true
                     if let r = result, !r.isEmpty { self.messages[idx].text = r }
                 } else if self.messages[idx].text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    self.messages[idx].text = stopped ? "(dihentikan)" : (result ?? "(selesai, tanpa teks)")
+                    self.messages[idx].text = stopped ? tr("(stopped)", "(dihentikan)") : (result ?? tr("(done, no text)", "(selesai, tanpa teks)"))
                 } else if stopped {
-                    self.messages[idx].text += "\n\n_(dihentikan)_"
+                    self.messages[idx].text += tr("\n\n_(stopped)_", "\n\n_(dihentikan)_")
                 }
                 self.messages[idx].text = self.messages[idx].text.trimmingCharacters(in: .whitespacesAndNewlines)
                 if let sid = self.sessionID { History.shared.record(id: sid, title: title, workDir: self.workDir) }

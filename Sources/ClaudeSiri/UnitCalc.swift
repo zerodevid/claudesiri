@@ -4,12 +4,17 @@ import Foundation
 /// ("30 hari lagi", "umur 12/3/1998", "1/1/2026 sampai 4/11/2026").
 @MainActor
 enum UnitCalc {
-    private struct U { let dim: String; let factor: Double; let label: String }
+    private struct U {
+        let dim: String; let factor: Double; let en: String; let id: String
+        var label: String { tr(en, id) }
+    }
 
     // factor to the base unit: meter, kilogram, liter, second, byte, m², m/s
     private static let units: [String: U] = {
         var u: [String: U] = [:]
-        func add(_ names: [String], _ dim: String, _ f: Double, _ label: String) { for n in names { u[n] = U(dim: dim, factor: f, label: label) } }
+        func add(_ names: [String], _ dim: String, _ f: Double, _ en: String, _ id: String? = nil) {
+            for n in names { u[n] = U(dim: dim, factor: f, en: en, id: id ?? en) }
+        }
         add(["mm", "milimeter"], "len", 0.001, "mm")
         add(["cm", "centimeter", "sentimeter", "senti"], "len", 0.01, "cm")
         add(["m", "meter"], "len", 1, "m")
@@ -17,8 +22,8 @@ enum UnitCalc {
         add(["in", "inch", "inci", "\""], "len", 0.0254, "in")
         add(["ft", "feet", "foot", "kaki"], "len", 0.3048, "ft")
         add(["yd", "yard"], "len", 0.9144, "yd")
-        add(["mi", "mil", "mile", "miles"], "len", 1609.344, "mil")
-        add(["nmi", "mil laut"], "len", 1852, "mil laut")
+        add(["mi", "mil", "mile", "miles"], "len", 1609.344, "mi", "mil")
+        add(["nmi", "mil laut"], "len", 1852, "nmi", "mil laut")
         add(["mg", "miligram"], "mass", 1e-6, "mg")
         add(["g", "gr", "gram"], "mass", 0.001, "g")
         add(["ons"], "mass", 0.1, "ons")
@@ -33,12 +38,12 @@ enum UnitCalc {
         add(["cup", "gelas"], "vol", 0.2365882365, "cup")
         add(["floz"], "vol", 0.0295735, "fl oz")
         add(["ms", "milidetik"], "time", 0.001, "ms")
-        add(["s", "detik", "dtk", "sec", "second", "seconds"], "time", 1, "detik")
-        add(["min", "menit", "minute", "minutes"], "time", 60, "menit")
-        add(["h", "jam", "hour", "hours"], "time", 3600, "jam")
-        add(["hari", "day", "days"], "time", 86400, "hari")
-        add(["minggu", "week", "weeks", "pekan"], "time", 604800, "minggu")
-        add(["tahun", "year", "years", "thn"], "time", 31557600, "tahun")
+        add(["s", "detik", "dtk", "sec", "second", "seconds"], "time", 1, "s", "detik")
+        add(["min", "menit", "minute", "minutes"], "time", 60, "min", "menit")
+        add(["h", "jam", "hour", "hours"], "time", 3600, "h", "jam")
+        add(["hari", "day", "days"], "time", 86400, "days", "hari")
+        add(["minggu", "week", "weeks", "pekan"], "time", 604800, "weeks", "minggu")
+        add(["tahun", "year", "years", "thn"], "time", 31557600, "years", "tahun")
         add(["b", "byte", "bytes"], "data", 1, "B")
         add(["kb"], "data", 1e3, "KB")
         add(["mb"], "data", 1e6, "MB")
@@ -53,7 +58,7 @@ enum UnitCalc {
         add(["are"], "area", 100, "are")
         add(["acre", "ekar"], "area", 4046.8564224, "acre")
         add(["ft2", "ft²", "sqft"], "area", 0.09290304, "ft²")
-        add(["kmh", "km/h", "km/jam", "kph"], "speed", 1 / 3.6, "km/jam")
+        add(["kmh", "km/h", "km/jam", "kph"], "speed", 1 / 3.6, "km/h", "km/jam")
         add(["mph"], "speed", 0.44704, "mph")
         add(["m/s", "mps"], "speed", 1, "m/s")
         add(["knot", "kn", "knots"], "speed", 0.514444, "knot")
@@ -135,7 +140,7 @@ enum UnitCalc {
     }
 
     private static func fmt(_ d: Date) -> String {
-        let f = DateFormatter(); f.locale = Locale(identifier: "id_ID"); f.dateFormat = "EEEE, d MMMM yyyy"
+        let f = DateFormatter(); f.locale = uiLocale; f.dateFormat = UILanguage.isIndonesian ? "EEEE, d MMMM yyyy" : "EEEE, MMMM d, yyyy"
         return f.string(from: d)
     }
 
@@ -144,9 +149,9 @@ enum UnitCalc {
         let c = cal.dateComponents([.year, .month, .day], from: lo, to: hi)
         let days = cal.dateComponents([.day], from: lo, to: hi).day ?? 0
         var parts: [String] = []
-        if let y = c.year, y > 0 { parts.append("\(y) tahun") }
-        if let m = c.month, m > 0 { parts.append("\(m) bulan") }
-        if let d = c.day, d > 0 || parts.isEmpty { parts.append("\(d) hari") }
+        if let y = c.year, y > 0 { parts.append(tr(y == 1 ? "1 year" : "\(y) years", "\(y) tahun")) }
+        if let m = c.month, m > 0 { parts.append(tr(m == 1 ? "1 month" : "\(m) months", "\(m) bulan")) }
+        if let d = c.day, d > 0 || parts.isEmpty { parts.append(tr(d == 1 ? "1 day" : "\(d) days", "\(d) hari")) }
         return (parts.joined(separator: " "), days)
     }
 
@@ -154,6 +159,11 @@ enum UnitCalc {
         let unitMap: [String: Calendar.Component] = ["hari": .day, "day": .day, "days": .day, "minggu": .weekOfYear, "pekan": .weekOfYear,
                                                      "week": .weekOfYear, "weeks": .weekOfYear, "bulan": .month, "month": .month,
                                                      "months": .month, "tahun": .year, "year": .year, "years": .year]
+        // English: "in 30 days", "in 2 weeks"
+        if let m = s.firstMatch(of: #/^in\s+(\d+)\s+([a-z]+)$/#), let n = Int(m.1), let comp = unitMap[String(m.2)],
+           let d = cal.date(byAdding: comp, value: n, to: cal.startOfDay(for: Date())) {
+            return CalcResult(expression: raw.trimmingCharacters(in: .whitespaces) + " =", value: fmt(d), copyText: isoDate(d))
+        }
         // "30 hari lagi" (in 30 days), "3 bulan dari sekarang", "100 hari yang lalu" (ago), "2 minggu dari 1/12/2026"
         if let m = s.firstMatch(of: #/^(\d+)\s+([a-z]+)\s+(lagi|kemudian|dari sekarang|dari hari ini|ke depan|yang lalu|lalu|sebelumnya|ago|from now|dari .+|sebelum .+)$/#),
            let n = Int(m.1), let comp = unitMap[String(m.2)] {
@@ -172,20 +182,20 @@ enum UnitCalc {
         if let m = s.firstMatch(of: #/^(umur|usia|sejak|since|age)\s+(.+)$/#), let d = parseDate(String(m.2)) {
             let (txt, days) = span(d, cal.startOfDay(for: Date()))
             return CalcResult(expression: raw.trimmingCharacters(in: .whitespaces) + " =", value: txt, copyText: txt,
-                              secondary: "= \(Calculator.formatNumber(Double(days))) hari", note: "sejak \(fmt(d))")
+                              secondary: "= \(Calculator.formatNumber(Double(days))) " + tr("days", "hari"), note: tr("since ", "sejak ") + fmt(d))
         }
         // "1/1/2026 sampai 4/11/2026" (until), "hari ini sampai 25 desember"
         if let m = s.firstMatch(of: #/^(?:selisih\s+)?(.+?)\s+(?:sampai|hingga|s\/d|sd|to|until|ke)\s+(.+)$/#),
            let a = parseDate(String(m.1)), let b = parseDate(String(m.2)) {
             let (txt, days) = span(a, b)
             return CalcResult(expression: raw.trimmingCharacters(in: .whitespaces) + " =",
-                              value: "\(Calculator.formatNumber(Double(days))) hari", copyText: "\(days)",
+                              value: "\(Calculator.formatNumber(Double(days))) " + tr("days", "hari"), copyText: "\(days)",
                               secondary: "= \(txt)", note: "\(fmt(a)) → \(fmt(b))")
         }
         // "25 desember 2026" / "12/3/1998" → which weekday
         if s.contains(where: \.isNumber), let d = parseDate(s) {
             let (txt, days) = span(cal.startOfDay(for: Date()), d)
-            let rel = days == 0 ? "hari ini" : (d > Date() ? "\(txt) lagi" : "\(txt) yang lalu")
+            let rel = days == 0 ? tr("today", "hari ini") : (d > Date() ? tr("in \(txt)", "\(txt) lagi") : tr("\(txt) ago", "\(txt) yang lalu"))
             return CalcResult(expression: raw.trimmingCharacters(in: .whitespaces) + " =", value: fmt(d), copyText: isoDate(d),
                               secondary: rel)
         }

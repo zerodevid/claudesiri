@@ -161,7 +161,7 @@ struct CodeBlock: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text(lang.isEmpty ? "kode" : lang).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.dim)
+                Text(lang.isEmpty ? tr("code", "kode") : lang).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.dim)
                 Spacer()
                 Button {
                     NSPasteboard.general.clearContents()
@@ -169,7 +169,7 @@ struct CodeBlock: View {
                     copied = true
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { copied = false }
                 } label: {
-                    Label(copied ? "Tersalin" : "Salin", systemImage: copied ? "checkmark" : "doc.on.doc")
+                    Label(copied ? tr("Copied", "Tersalin") : tr("Copy", "Salin"), systemImage: copied ? "checkmark" : "doc.on.doc")
                         .font(.system(size: 11)).foregroundStyle(copied ? .green : Theme.dim)
                 }.buttonStyle(.plain)
             }

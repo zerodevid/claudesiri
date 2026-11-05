@@ -27,8 +27,8 @@ final class SpeechInput: ObservableObject {
         SFSpeechRecognizer.requestAuthorization { status in
             AVCaptureDevice.requestAccess(for: .audio) { mic in
                 DispatchQueue.main.async {
-                    guard status == .authorized else { self.error = "Izin Pengenalan Ucapan belum diberikan (System Settings › Privacy)"; return }
-                    guard mic else { self.error = "Izin mikrofon belum diberikan (System Settings › Privacy › Microphone)"; return }
+                    guard status == .authorized else { self.error = tr("Speech Recognition permission is missing (System Settings › Privacy & Security)", "Izin Pengenalan Ucapan belum diberikan (System Settings › Privacy & Security)"); return }
+                    guard mic else { self.error = tr("Microphone permission is missing (System Settings › Privacy & Security › Microphone)", "Izin mikrofon belum diberikan (System Settings › Privacy & Security › Microphone)"); return }
                     self.start()
                 }
             }
@@ -37,7 +37,7 @@ final class SpeechInput: ObservableObject {
 
     private func start() {
         guard let rec = SFSpeechRecognizer(locale: Locale(identifier: locale)), rec.isAvailable else {
-            error = "Pengenal suara \(locale) tidak tersedia"; return
+            error = tr("Speech recognition for \(locale) is not available", "Pengenal suara \(locale) tidak tersedia"); return
         }
         let req = SFSpeechAudioBufferRecognitionRequest()
         req.shouldReportPartialResults = true
@@ -62,7 +62,7 @@ final class SpeechInput: ObservableObject {
             engine.prepare()
             try engine.start()
         } catch {
-            self.error = "Mikrofon gagal: \(error.localizedDescription)"; return
+            self.error = tr("Microphone failed: ", "Mikrofon gagal: ") + error.localizedDescription; return
         }
         listening = true
         armSilence(after: 6)   // stop on its own if nothing is said at all
