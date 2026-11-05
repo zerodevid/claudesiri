@@ -32,6 +32,13 @@ final class ClaudeRunner {
     private var onEvent: ((Event) -> Void)?
     private let writeQueue = DispatchQueue(label: "claudesiri.stdin")
     private var killTimer: DispatchWorkItem?
+    private var idleTimer: DispatchWorkItem?
+
+    /// An idle process is shut down after this many minutes (`idleMinutes`, default 10, 0 = never).
+    /// The next message reopens it with --resume, so the conversation continues where it left off.
+    static var idleMinutes: Double {
+        UserDefaults.standard.object(forKey: "idleMinutes") as? Double ?? 10
+    }
 
     /// Model for the next / running process ("" = CLI default).
     var model: String = UserDefaults.standard.string(forKey: "model") ?? ""
@@ -79,6 +86,7 @@ final class ClaudeRunner {
     /// content = Anthropic message blocks: [{"type":"text",...}, {"type":"image",...}]
     func send(content: [[String: Any]], sessionID: String?, workDir: String, allowed: [String], onEvent: @escaping (Event) -> Void) {
         self.onEvent = onEvent
+        idleTimer?.cancel()
         if !isRunning {
             guard start(sessionID: sessionID, workDir: workDir, allowed: allowed) else { return }
         }
@@ -122,6 +130,7 @@ final class ClaudeRunner {
 
     /// Kill the process (new chat / folder change). The next message starts a new one with --resume.
     func kill() {
+        idleTimer?.cancel()
         guard let p = process else { return }
         process = nil
         stdin = nil
@@ -140,8 +149,21 @@ final class ClaudeRunner {
             guard turnOpen else { return }
             turnOpen = false
             killTimer?.cancel()
+            scheduleIdleShutdown()
         }
         onEvent?(ev)
+    }
+
+    private func scheduleIdleShutdown() {
+        idleTimer?.cancel()
+        let mins = Self.idleMinutes
+        guard mins > 0 else { return }
+        let w = DispatchWorkItem { [weak self] in
+            guard let self, !self.turnOpen, self.isRunning else { return }
+            self.kill()
+        }
+        idleTimer = w
+        DispatchQueue.main.asyncAfter(deadline: .now() + mins * 60, execute: w)
     }
 
     private func control(_ req: [String: Any]) {
