@@ -683,9 +683,6 @@ struct CompactView: View {
                                     model.pasteIntoPreviousApp()
                                 }
                             }
-                            QuickAction(symbol: "arrow.up.left.and.arrow.down.right", title: tr("Open in chat", "Buka di chat")) {
-                                model.expanded = true
-                            }
                         }
                     }
                 }
