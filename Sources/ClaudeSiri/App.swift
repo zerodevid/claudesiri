@@ -57,9 +57,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             return [ChatMessage(role: .user, text: q), m]
         }
         let states: [(String, () -> Void)] = [
-            ("1-empty", { self.model.newChat() }),
+            ("1-empty", { self.model.newChat(); self.model.contextApp = nil; self.model.contextAppName = "Notes" }),
             ("2-calc", { self.model.input = "250 eur idr"; self.model.updatePreview() }),
-            ("3-answer", { self.model.input = ""; self.model.messages = chat("Compare the plans", answer) }),
+            ("3-answer", { self.model.input = ""; self.model.contextApp = nil; self.model.contextAppName = "Notes"
+                self.model.messages = chat("Compare the plans", answer) }),
             ("4-permission", {
                 self.model.expanded = true
                 self.model.messages = chat("Clean up the build folder", "Sure, I will remove the old build output.")
