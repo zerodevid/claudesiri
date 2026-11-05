@@ -111,6 +111,9 @@ final class ChatModel: ObservableObject {
     @Published var modelChoice: String = UserDefaults.standard.string(forKey: "model") ?? ""
     @Published var micText: String?
     @Published private(set) var permMode = PermMode.current
+    @Published private(set) var permScope = PermScope.current
+    @Published private(set) var permUntil = PermScope.until
+    private var permTimer: Timer?
     let speech = SpeechInput()
     var contextApp: NSRunningApplication?
     /// Called when Claude needs attention (a permission) → AppDelegate shows the panel.
@@ -131,7 +134,13 @@ final class ChatModel: ObservableObject {
         }
         r.refreshIfStale()
         runner.model = modelChoice
+        // a mode limited to one chat does not survive a restart (the app starts with a new chat)
+        if permMode != .ask && permScope == .chat { setPermMode(.ask) }
+        expirePermModeIfNeeded()
         runner.setBypass(permMode == .bypass)
+        permTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+            DispatchQueue.main.async { self?.expirePermModeIfNeeded() }
+        }
         speechSink = speech.objectWillChange.sink { [weak self] in
             DispatchQueue.main.async { self?.objectWillChange.send() }
         }
@@ -140,15 +149,29 @@ final class ChatModel: ObservableObject {
     static let models: [(id: String, label: String)] = [("", "Default"), ("opus", "Opus"), ("sonnet", "Sonnet"), ("haiku", "Haiku")]
 
     /// Switch the permission mode; for anything but "ask", queued requests are approved right away.
-    func setPermMode(_ m: PermMode) {
+    /// `scope` limits an automatic mode to this chat, one hour, or until it is changed.
+    func setPermMode(_ m: PermMode, scope: PermScope = .always) {
         permMode = m
+        permScope = m == .ask ? .always : scope
+        permUntil = (m != .ask && scope == .hour) ? Date().addingTimeInterval(3600) : nil
         PermMode.save(m)
+        PermScope.save(permScope, until: permUntil)
         runner.setBypass(m == .bypass)
         if m != .ask {
             for r in permissions { runner.respond(id: r.id, allow: true, input: r.input) }
             if let last = permissions.last { currentTool = "\(last.tool) · \(last.detail.prefix(80))" }
             permissions = []
         }
+    }
+
+    /// Fall back to Ask first when a one-hour mode has run out.
+    func expirePermModeIfNeeded() {
+        if permMode != .ask, let u = permUntil, Date() >= u { setPermMode(.ask) }
+    }
+
+    /// A chat-scoped automatic mode ends when the chat changes.
+    private func endChatScopedMode() {
+        if permMode != .ask && permScope == .chat { setPermMode(.ask) }
     }
 
     func setModel(_ m: String) {
@@ -251,6 +274,7 @@ final class ChatModel: ObservableObject {
                 self.messages[idx].tools.append(line)
                 self.currentTool = line
             case .permission(let id, let tool, let input, let desc):
+                self.expirePermModeIfNeeded()
                 if self.permMode != .ask || PermissionRules.shared.allows(tool: tool, input: input) {
                     self.runner.respond(id: id, allow: true, input: input)
                 } else {
@@ -295,6 +319,7 @@ final class ChatModel: ObservableObject {
     /// Open an old session from history.
     func loadSession(_ info: SessionInfo) {
         runner.kill()
+        endChatScopedMode()
         let msgs = History.loadMessages(id: info.id, workDir: info.workDir)
         messages = msgs.map { ChatMessage(role: $0.user ? .user : .assistant, text: $0.text) }
         sessionID = info.id
@@ -342,6 +367,7 @@ final class ChatModel: ObservableObject {
 
     func newChat() {
         runner.kill()
+        endChatScopedMode()
         permissions = []
         attachments = []
         selected = nil

@@ -329,7 +329,7 @@ struct PermissionCard: View {
                     }
                     .help(tr("Save the rule \(req.ruleSuggestion ?? "") (remove it in Settings › Permissions)", "Simpan aturan \(req.ruleSuggestion ?? "") (bisa dihapus di Pengaturan › Izin)"))
                 }
-                pill(tr("Allow all", "Izinkan semua"), fg: .white, bg: Color.white.opacity(0.12)) { model.setPermMode(.always) }
+                pill(tr("Allow all", "Izinkan semua"), fg: .white, bg: Color.white.opacity(0.12)) { model.setPermMode(.always, scope: .chat) }
                     .help(tr("Approve this and every later request without asking (Always allow mode, for this chat)", "Setujui ini dan semua permintaan berikutnya tanpa tanya (mode Selalu izinkan, untuk chat ini)"))
                 pill(tr("Allow", "Izinkan"), fg: .black, bg: .white) { model.answerPermission(req, allow: true) }
                     .keyboardShortcut(.return, modifiers: [.command])
@@ -432,16 +432,25 @@ struct PermModeMenu: View {
     var body: some View {
         let m = model.permMode
         Menu {
-            ForEach(PermMode.allCases, id: \.self) { opt in
-                Button { model.setPermMode(opt) } label: {
+            Button { model.setPermMode(.ask) } label: {
+                Label(PermMode.ask.label + (m == .ask ? "  ✓" : ""), systemImage: PermMode.ask.symbol)
+            }
+            ForEach([PermMode.always, .bypass], id: \.self) { opt in
+                Menu {
+                    ForEach(PermScope.allCases, id: \.self) { sc in
+                        Button(sc.label + (opt == m && sc == model.permScope ? "  ✓" : "")) { model.setPermMode(opt, scope: sc) }
+                    }
+                } label: {
                     Label(opt.label + (opt == m ? "  ✓" : ""), systemImage: opt.symbol)
                 }
-                .help(opt.detail)
             }
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: m.symbol).font(.system(size: 11, weight: .semibold))
-                if m != .ask { Text(m == .always ? "Auto" : "Bypass") }
+                if m != .ask {
+                    Text(m == .always ? "Auto" : "Bypass")
+                    if let s = scopeBadge { Text(s).opacity(0.7) }
+                }
             }
             .font(.system(size: 12, weight: .medium))
             .foregroundStyle(m == .ask ? Color(white: 0.75) : m == .always ? Color.orange : Color(red: 1, green: 0.42, blue: 0.4))
@@ -450,6 +459,17 @@ struct PermModeMenu: View {
         }
         .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
         .help(tr("Permission mode", "Mode izin") + ": \(m.label) — \(m.detail)")
+    }
+
+    /// "chat" or minutes left for a scoped automatic mode.
+    private var scopeBadge: String? {
+        switch model.permScope {
+        case .chat: return tr("· chat", "· chat")
+        case .hour:
+            guard let u = model.permUntil else { return nil }
+            return "· \(max(1, Int(u.timeIntervalSinceNow / 60)))m"
+        case .always: return nil
+        }
     }
 }
 

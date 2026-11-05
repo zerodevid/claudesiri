@@ -98,3 +98,27 @@ enum PermMode: String, CaseIterable {
         UserDefaults.standard.removeObject(forKey: "bypassPermissions")
     }
 }
+
+/// How long an automatic permission mode (Always allow / Bypass) lasts before falling back to Ask first.
+enum PermScope: String, CaseIterable {
+    case chat, hour, always
+
+    var label: String {
+        switch self {
+        case .chat: return tr("For this chat", "Untuk chat ini")
+        case .hour: return tr("For 1 hour", "Selama 1 jam")
+        case .always: return tr("Until I change it", "Sampai saya ubah")
+        }
+    }
+
+    static var current: PermScope {
+        PermScope(rawValue: UserDefaults.standard.string(forKey: "permModeScope") ?? "") ?? .always
+    }
+    static var until: Date? { UserDefaults.standard.object(forKey: "permModeUntil") as? Date }
+
+    static func save(_ s: PermScope, until: Date?) {
+        let d = UserDefaults.standard
+        d.set(s.rawValue, forKey: "permModeScope")
+        if let until { d.set(until, forKey: "permModeUntil") } else { d.removeObject(forKey: "permModeUntil") }
+    }
+}
