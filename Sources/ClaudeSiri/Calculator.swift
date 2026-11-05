@@ -16,6 +16,13 @@ final class Rates: ObservableObject {
         "DOGE": "dogecoin", "TON": "the-open-network", "ADA": "cardano", "TRX": "tron",
     ]
 
+    /// Fixed rates, for tests: no network, no UserDefaults.
+    init(fixed: [String: Double], updated: Date? = Date()) {
+        usdPer.merge(fixed) { $1 }
+        self.updated = updated
+        loading = true   // never refresh
+    }
+
     init() {
         let d = UserDefaults.standard
         if let m = d.dictionary(forKey: "rates") as? [String: Double] { usdPer.merge(m) { $1 } }
@@ -106,7 +113,8 @@ enum Calculator {
     static let toWords: Set<String> = ["ke", "to", "in", "dalam", "jadi", "into"]
 
     @MainActor
-    static func evaluate(_ input: String, rates: Rates = .shared) -> CalcResult? {
+    static func evaluate(_ input: String, rates: Rates? = nil) -> CalcResult? {
+        let rates = rates ?? .shared
         let raw = input.trimmingCharacters(in: .whitespacesAndNewlines)
         if raw.count < 120, let u = UnitCalc.evaluate(raw) { return u }
         guard !raw.isEmpty, raw.count < 200, var toks = try? tokenize(raw, known: Set(rates.usdPer.keys)) else { return nil }
