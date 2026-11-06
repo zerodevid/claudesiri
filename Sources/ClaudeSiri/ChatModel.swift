@@ -18,6 +18,14 @@ struct ChatMessage: Identifiable, Equatable {
 }
 
 /// An image attached before sending.
+/// A follow-up typed while a turn is still running.
+struct QueuedMessage: Identifiable {
+    let id = UUID()
+    let text: String
+    let attachments: [Attachment]
+    let selected: ScreenContext.Selected?
+}
+
 struct Attachment: Identifiable, Equatable {
     let id = UUID()
     let image: NSImage
@@ -101,6 +109,8 @@ final class ChatModel: ObservableObject {
     }
     @Published var preview: CalcResult?
     @Published var busy = false
+    /// Follow-up messages typed while Claude is still answering; sent one by one when the turn ends.
+    @Published var queued: [QueuedMessage] = []
     @Published var expanded = false
     @Published var currentTool: String?
     @Published var focusTick = 0
@@ -235,12 +245,22 @@ final class ChatModel: ObservableObject {
 
     func send() {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard (!text.isEmpty || !attachments.isEmpty), !busy else { return }
+        guard !text.isEmpty || !attachments.isEmpty else { return }
         input = ""
         let atts = attachments
         attachments = []
         let sel = selected
         selected = nil
+        if busy {
+            queued.append(QueuedMessage(text: text, attachments: atts, selected: sel))
+            return
+        }
+        dispatch(text: text, atts: atts, sel: sel)
+    }
+
+    func unqueue(_ q: QueuedMessage) { queued.removeAll { $0.id == q.id } }
+
+    private func dispatch(text: String, atts: [Attachment], sel: ScreenContext.Selected?) {
         let firstOfChat = messages.allSatisfy { $0.calc != nil }
         messages.append(ChatMessage(role: .user, text: text, images: atts.map(\.image),
                                     context: sel.map { tr("Selected text from \($0.app)", "Teks terpilih dari \($0.app)") },
@@ -304,6 +324,18 @@ final class ChatModel: ObservableObject {
                 self.messages[idx].text = self.messages[idx].text.trimmingCharacters(in: .whitespacesAndNewlines)
                 if let sid = self.sessionID { History.shared.record(id: sid, title: title, workDir: self.workDir) }
                 self.onFinished?(self.messages[idx].text, Date().timeIntervalSince(self.turnStart))
+                if stopped || isErr {
+                    // Don't fire queued follow-ups after a stop or error; give them back as editable input.
+                    if !self.queued.isEmpty {
+                        let texts = self.queued.map(\.text).filter { !$0.isEmpty }
+                        self.attachments += self.queued.flatMap(\.attachments)
+                        self.input = (texts + [self.input]).filter { !$0.isEmpty }.joined(separator: "\n")
+                        self.queued = []
+                    }
+                } else if !self.queued.isEmpty {
+                    let next = self.queued.removeFirst()
+                    self.dispatch(text: next.text, atts: next.attachments, sel: next.selected)
+                }
             }
         }
     }
@@ -336,6 +368,7 @@ final class ChatModel: ObservableObject {
         sessionID = info.id
         workDir = info.workDir
         busy = false
+        queued = []
         permissions = []
         currentTool = nil
         input = ""
@@ -385,6 +418,7 @@ final class ChatModel: ObservableObject {
         messages = []
         sessionID = nil
         busy = false
+        queued = []
         currentTool = nil
         input = ""
         focusTick += 1

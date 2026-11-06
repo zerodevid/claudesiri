@@ -193,11 +193,21 @@ struct InputPill: View {
                 .font(.system(size: big ? 24 : 17))
                 .lineLimit(1...6)
                 .focused($focused)
-                .onSubmit { model.submit() }
+                .onSubmit {
+                    model.submit()
+                    // A vertical TextField ends editing on Enter, and the layout may swap views; take
+                    // focus back so a follow-up can be typed right away.
+                    DispatchQueue.main.async { focused = true }
+                }
             if model.busy {
-                trailing("stop.fill", tint: .white) { model.stop() }
+                if !model.input.trimmingCharacters(in: .whitespaces).isEmpty || !model.attachments.isEmpty {
+                    trailing("text.append", tint: .black, fill: .white) { model.send(); focused = true }
+                        .help(tr("Queue — sends after the current answer", "Antrekan — dikirim setelah jawaban ini selesai"))
+                } else {
+                    trailing("stop.fill", tint: .white) { model.stop() }
+                }
             } else if !model.input.trimmingCharacters(in: .whitespaces).isEmpty || !model.attachments.isEmpty {
-                trailing("arrow.up", tint: .black, fill: .white) { model.send() }
+                trailing("arrow.up", tint: .black, fill: .white) { model.send(); focused = true }
             } else if model.speech.listening {
                 Button { model.speech.finish() } label: {
                     Image(systemName: "waveform")
@@ -275,6 +285,34 @@ struct CalcCard: View {
 }
 
 /// Row of thumbnails for the images about to be sent.
+/// Follow-ups waiting for the current answer to finish.
+struct QueueStrip: View {
+    @ObservedObject var model: ChatModel
+
+    var body: some View {
+        if !model.queued.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(model.queued) { q in
+                    HStack(spacing: 6) {
+                        Image(systemName: "clock").font(.system(size: 11))
+                        Text((q.attachments.isEmpty ? "" : "🖼 \(q.attachments.count) · ")
+                             + (q.text.isEmpty ? tr("(image)", "(gambar)") : q.text.replacingOccurrences(of: "\n", with: " ")))
+                            .lineLimit(1)
+                        Spacer(minLength: 4)
+                        Button { model.unqueue(q) } label: { Image(systemName: "xmark").font(.system(size: 10, weight: .semibold)) }
+                            .buttonStyle(.plain)
+                            .help(tr("Remove from queue", "Hapus dari antrean"))
+                    }
+                    .font(.system(size: 12)).foregroundStyle(Theme.dim)
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .background(Capsule().fill(Color.white.opacity(0.07)))
+                }
+            }
+            .help(tr("Queued — sent after the current answer", "Antre — dikirim setelah jawaban ini selesai"))
+        }
+    }
+}
+
 struct AttachmentStrip: View {
     @ObservedObject var model: ChatModel
     var body: some View {
@@ -681,6 +719,7 @@ struct CompactView: View {
                             PermissionCard(model: model, req: req)
                         }
 
+                        QueueStrip(model: model)
                         SelectionChip(model: model)
                         AttachmentStrip(model: model)
                         HStack(spacing: 12) {
@@ -699,6 +738,7 @@ struct CompactView: View {
         .onAppear { focused = true }
         .onChange(of: model.focusTick) { focused = true }
         .onChange(of: model.busy) { _, b in if !b { focused = true } }   // ready for a follow-up
+        .onChange(of: model.messages.count) { DispatchQueue.main.async { focused = true } }  // layout swapped
     }
 
     @ViewBuilder private var answerCard: some View {
@@ -823,6 +863,7 @@ struct ExpandedView: View {
                 if let e = model.speech.error {
                     Text(e).font(.system(size: 12)).foregroundStyle(.orange).padding(.horizontal, 18).padding(.top, 8)
                 }
+                QueueStrip(model: model).padding(.horizontal, 18).padding(.top, 8)
                 SelectionChip(model: model).padding(.horizontal, 18).padding(.top, 8)
                 AttachmentStrip(model: model).padding(.horizontal, 18)
                 HStack(spacing: 12) {
