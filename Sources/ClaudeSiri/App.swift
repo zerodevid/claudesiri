@@ -210,8 +210,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     func toggle() { panel.isVisible && panel.isKeyWindow && !hiding ? hide() : show() }
 
     func windowDidResignKey(_ notification: Notification) {
-        // Compact mode: clicking outside hides it (like Spotlight/Siri). Expanded mode keeps floating.
-        if !model.expanded { hide() }
+        // Compact mode: clicking outside hides it (like Spotlight/Siri). Expanded mode keeps floating,
+        // and so does a panel that is still answering or waiting on a permission, so it isn't lost mid-turn.
+        if !model.expanded && !model.busy && model.permissions.isEmpty { hide() }
     }
 
     // MARK: Keyboard
